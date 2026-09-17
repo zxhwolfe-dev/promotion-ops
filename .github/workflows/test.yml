@@ -13,7 +13,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - run: npm install --ignore-scripts
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Public dependency lockfile bootstrap (temporary)
+        run: |
+          echo 'PROMO_LOCKFILE_BEGIN'
+          cat package-lock.json
+          echo 'PROMO_LOCKFILE_END'
       - run: npm run check
       - run: npx playwright-core install --with-deps chromium
       - name: Unit tests and isolated browser contracts (no production credentials)
