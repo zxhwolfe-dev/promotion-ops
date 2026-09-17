@@ -23,7 +23,9 @@ async function main() {
       try {
         await navigate(page, target.url, SITES[target.kind].hosts);
         if (articleURL(target.kind, page.url()) !== articleURL(target.kind, target.url)) throw new OpsError('TARGET_CHANGED', '文章跳转至其他目标，不能归入原文章统计', 2);
-        const metrics = Object.fromEntries(await Promise.all(['reads', 'likes', 'comments'].map(async key => [key, await readMetric(page, target.metricSelectors?.[key])])));
+        await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {}); // 四平台均为 SPA：指标多为异步渲染
+        await page.waitForTimeout(3000);
+        const metrics = Object.fromEntries(await Promise.all(['reads', 'likes', 'comments'].map(async key => [key, await readMetric(page, target.metricSelectors?.[key], 10000)])));
         const known = Object.values(metrics).filter(metric => metric.value !== null).length;
         out.push({ ...base, status: known === 3 ? 'ok' : known ? 'partial' : 'unavailable', metrics });
       } catch (error) {

@@ -114,6 +114,23 @@ test('uncertain submitted write is never replayed', async () => {
 test('human challenge after submit records needs_human', async () => {
   await assert.rejects(writeOnce({ kind: 'unit.human' }, async ({ submit }) => { await submit(async () => {}); throw new OpsError('HUMAN_REQUIRED', 'captcha', 3); }), error => error.details.state === 'needs_human' && error.exitCode === 3);
 });
+test('stale prepared record is provably side-effect-free and reruns without manual reconcile', async () => {
+  // Counterexample this guards: a process crash after writing 'prepared' but before submit()
+  // previously blocked forever with RECONCILE_REQUIRED even though action() can only run after
+  // the 'submitted' record is durably written.
+  const intent = { kind: 'unit.stale_prepared' };
+  const operationId = hash(JSON.stringify((function canonical(v){ if(Array.isArray(v)) return v.map(canonical); if(v&&typeof v==='object') return Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])); return v; })(intent)));
+  const file = path.join(stateDir(), 'operations', operationId + '.json');
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify({ operationId, kind: intent.kind, status: 'prepared', startedAt: '2026-09-17T00:00:00.000Z' }, null, 2));
+  let calls = 0;
+  const result = await writeOnce(intent, async ({ submit }) => { await submit(async () => { calls++; }); return verified; });
+  assert.equal(result.status, 'verified');
+  assert.equal(calls, 1);
+  const record = JSON.parse(await fs.readFile(file, 'utf8'));
+  assert.equal(record.status, 'verified');
+  assert.ok(record.reviews.some(review => review.decision === 'auto_recovered_stale_prepared'), 'recovery must be auditable');
+});
 test('known failure before submit may be retried', async () => {
   const intent = { kind: 'unit.preflight' };
   await rejectsCode(writeOnce(intent, async () => { throw new OpsError('BAD_INPUT', 'bad'); }), 'BAD_INPUT');
