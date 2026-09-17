@@ -23,8 +23,9 @@ async function main(args = process.argv.slice(2)) {
     await fillEmpty(await choose(page, [composer.locator('input[name="subjectbox"]')], '邮件主题'), subject);
     await fillEmpty(await choose(page, [composer.locator('[aria-label="邮件正文"], [aria-label="Message Body"]')], '邮件正文'), body);
     const send = await button(page, /^(?:发送|Send)(?:\s*[（(].*[）)])?$/, composer);
+    await assertAccount(page, account); // Recheck immediately before the external side effect.
     await submit(() => send.click()); // 不使用可能弹出确认框的 Ctrl+Enter。
-    return withReadPage(page.context(), readPage => until(() => verifySent(readPage, { query, previousIds, recipient, subject, body }), {
+    return withReadPage(page.context(), readPage => until(() => verifySent(readPage, { query, previousIds, recipient, subject, body, account }), {
       timeout: 30000, interval: 2000, label: '未在已发送中独立核验到新邮件；禁止重发，同主题会话合并可能需要人工核验',
     }));
   }, { keepOnError: true }));

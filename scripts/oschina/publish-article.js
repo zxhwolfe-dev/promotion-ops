@@ -3,8 +3,9 @@
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
-const { validateTitle, fingerprints, insertSafeHTML, verifyArticle } = require('../../lib/articles');
+const { validateTitle, fingerprints, insertSafeHTML, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
+  articleBodySelectors('oschina');
   const title = validateTitle(args[0]);
   const html = await readText(args[1]);
   const account = requiredEnv('OSCHINA_UID', /^\d+$/);

@@ -17,7 +17,7 @@ CDP 连接上的 `browser.close()` 用于断开连接；不关闭默认 context�
 需要 Node.js 22 或以上。生产只连接已有 Chrome，无需安装 Playwright 自带浏览器。
 
 ```bash
-npm install --ignore-scripts
+npm ci --ignore-scripts
 cp .env.example .env
 # 人工填写需要的平台账号配置；不要把 .env 加入版本库。
 node --env-file=.env scripts/ops/doctor.js
@@ -25,7 +25,7 @@ npm run check
 npm test
 ```
 
-固定依赖为 `playwright-core@1.63.0`，不再使用未固定版本的 `npm i playwright`。本次受限环境没有生成 npm registry 安装的 lockfile；首次联网安装后应审查并提交 `package-lock.json`，再将 CI 改为 `npm ci --ignore-scripts`。
+固定依赖为 `playwright-core@1.63.0`。`package-lock.json` 来自 Actions 中 npm 10.9.8 的真实 registry 安装（bootstrap run `35226866888`），含下载地址和 integrity；CI 使用 `npm ci --ignore-scripts` 并检查锁文件没有被改写。不要换成未固定版本的 `npm i playwright`。
 
 Windows 人工启动专用浏览器：
 
@@ -57,11 +57,14 @@ node --env-file=.env scripts/stats/daily-snapshot.js
 | 3 | 登录、扫码、验证码、已有草稿等人工事项 | 在保留标签中处理，之后核验 |
 | 4 | 资源占用或崩溃遗留锁 | 检查实际进程，不能按锁龄自动抢占 |
 
-文章证据是另一个标签页的永久链接、精确标题、正文首尾片段，不是整篇内容逐字一致或审核通过的证明，也尚未与本次提交请求的业务 ID 建立严格因果关联；当前登录态能看到也不等于未登录公众可见。Reddit 证据绑定新评论 ID、作者、目标帖子、正文和链接；OSCHINA 绑定新评论 ID、作者和正文。`reply-comment.js` 仍是顶层评论，不支持指定父评论回复。
+文章证据是另一个标签页的永久链接、唯一可见 h1 精确标题，以及唯一可见正文容器内的首尾片段，不是整篇内容逐字一致或审核通过的证明，也尚未与本次提交请求的业务 ID 建立严格因果关联；当前登录态能看到也不等于未登录公众可见。Reddit 证据绑定新评论 ID、作者、目标帖子、正文和链接；OSCHINA 绑定新评论 ID、作者和正文。`reply-comment.js` 仍是顶层评论，不支持指定父评论回复。
 
 邮件进入“已发送”不等于收件人已收到。百度 `success` 只表示接口接收，不等于搜索收录。昵称回读不等于公开审核已通过；资料变更须设置 `PROFILE_CHANGE_ID`，同一次变更重试保持 ID 不变，新的变更换 ID，不能用随机新 ID 绕过未核验状态。
 
 ## 人工核验与恢复
+
+先运行 `node --env-file=.env scripts/ops/inspect-state.js` 查看所有未核验操作和锁摘要；`--all --limit 100` 可包含已完成记录。该命令不连接 Chrome、不创建状态目录、不删除锁、不改台账，默认不展示 evidence、正文或收件人。扫描不是事务快照，活跃进程可能同时更新记录；`pendingCount`、`errors`、`truncated` 都必须检查，`status: ok` 只说明本地扫描完整，不代表远端任务已成功。
+
 
 ```bash
 # 只读查看某次操作；operationId 来自错误输出。
@@ -93,4 +96,14 @@ npm test
 PROMO_TEST_BROWSER=/path/to/chromium npm test
 ```
 
-浏览器测试中的域名由本地路由响应，不访问平台，不发送邮件或评论。测试容器若有管理员导航禁令，三个导航集成用例会明确跳过，不篡改浏览器策略。CI 安装固定依赖并运行隔离浏览器测试；结果以实际 Actions 记录为准。逐个平台的真实登录态验收仍需完成，见审查报告。
+浏览器测试中的域名由本地路由响应，不访问平台，不发送邮件或评论。测试容器若有管理员导航禁令，三个导航集成用例会明确跳过，不篡改浏览器策略。CI 使用锁文件安装固定依赖，在 Linux 运行完整隔离浏览器测试，在 Windows 运行公共逻辑单元测试。CI 设置 `PROMO_REQUIRE_BROWSER_TESTS=1`，缺少浏览器或被导航策略阻止将失败，不能以跳过全套浏览器测试的方式变绿；本地受限环境仍可明确跳过导航用例。结果以实际 Actions 记录为准。逐个平台的真实登录态验收仍需完成，见审查报告。
+
+## 第二轮加固与下一会话
+
+本轮修复并发 `submit()` 在首次落盘前可能重复进入的窗口；在第一个 await 前保留提交名额，等待已开始的提交结束才释放锁，并拒绝操作结束后的延迟提交。CLI 未知结果状态、空验证证据、损坏台账不能按成功返回。输入文件有实际读取上限并拒绝损坏 UTF-8；原子记录失败时清理临时文件，POSIX 同步父目录，Windows 不宣称具备相同的断电持久性。目录检查防止直接的符号链接/Windows junction 误配置，不是抵御同 OS 用户恶意竞态的沙箱。
+
+Gmail 发出前再次核验唯一可见账号，在已发送回读页面也核验；只看到隐藏账号菜单中的邮箱不够。收件箱分页不完整现在返回 `partial` / 退出码 2，不会被日报调度器当成全量成功。仍未解决同主题会话合并，不能因此自动重发。
+
+文章不再从全页正文、推荐区、隐藏内容或评论容器拼接证据。默认只接受唯一可见 `article` 或 `[role="article"]`；实际平台使用 div 时，应在 `.env` 中配置经真实页面确认的 `PROMO_ARTICLE_BODY_SELECTORS`（平台名到 1–5 个 CSS 选择器的 JSON 数组），例如在本地测试夹具中可写 `{"tencent":["#verified-copy"]}`。这是**夹具示例，不是线上选择器**。配置 JSON/结构错误在编辑之前停止；CSS 语法和实际 DOM 仍须在只读验收中确认；页面结构不匹配在提交后保持未核验，禁止全页降级。此项会更严格，必须逐平台只读验收后启用。
+
+详见 [第二轮审查](docs/review-followup-2026-09-17.md) 与 [下一会话执行说明](docs/NEXT_SESSION.md)。保持 PR 草稿；新增公共测试不代替真实平台验收。

@@ -12,8 +12,9 @@ const { withPage } = require('../lib/cdp');
 const { OpsError, until, choose, assertNoChallenge, fillEmpty } = require('../lib/ops');
 const { insertSafeHTML, articleDOMProof, verifyArticle } = require('../lib/articles');
 const { readMetric } = require('../lib/metrics');
-const { sentDOMProof, verifySent } = require('../lib/gmail');
+const { sentDOMProof, verifySent, assertAccount } = require('../lib/gmail');
 const executable = process.env.PROMO_TEST_BROWSER;
+if (process.env.PROMO_REQUIRE_BROWSER_TESTS === '1' && !executable) throw new Error('CI requires an isolated test browser');
 test('isolated Chrome/CDP and DOM contracts', { skip: !executable, timeout: 60000 }, async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'promo-browser-test-'));
   process.env.PROMO_STATE_DIR = path.join(dir, 'state');
@@ -105,12 +106,35 @@ test('isolated Chrome/CDP and DOM contracts', { skip: !executable, timeout: 6000
     });
     await t.test('article DOM proof excludes inputs and requires exact title plus both samples', async () => {
       const expected = { title: 'Expected title', needles: ['First exact sample', 'Last exact sample'] };
-      await page.setContent('<h1>Expected title</h1><p>First exact sample</p><p>Last exact sample</p>');
+      await page.setContent('<h1>Expected title</h1><article><p>First exact sample</p><p>Last exact sample</p></article>');
       assert.equal(await page.evaluate(articleDOMProof, expected), true);
-      await page.setContent('<h1>Expected title</h1><p>First exact sample</p><textarea>Last exact sample</textarea>');
+      await page.setContent('<h1>Expected title</h1><article><p>First exact sample</p><textarea>Last exact sample</textarea></article>');
       assert.equal(await page.evaluate(articleDOMProof, expected), false);
       await page.setContent('<h1>Other title</h1><p>First exact sample Last exact sample</p>');
       assert.equal(await page.evaluate(articleDOMProof, expected), false);
+    });
+    await t.test('article proof rejects recommendations, hidden samples, comments and ambiguous scopes', async () => {
+      const expected = { title: 'Expected title', needles: ['First exact sample', 'Last exact sample'] };
+      for (const body of [
+        '<article><p>First exact sample</p></article><aside>Last exact sample</aside>',
+        '<article><p>First exact sample</p><p hidden>Last exact sample</p></article>',
+        '<article><p>First exact sample</p><section id="comments">Last exact sample</section></article>',
+        '<article>First exact sample Last exact sample</article><article>Other article</article>',
+        '<p>First exact sample Last exact sample</p>',
+      ]) {
+        await page.setContent('<h1>Expected title</h1>' + body);
+        assert.equal(await page.evaluate(articleDOMProof, expected), false);
+      }
+      await page.setContent('<h1>Expected title</h1><div id="verified-copy">First exact sample Last exact sample</div>');
+      assert.equal(await page.evaluate(articleDOMProof, { ...expected, bodySelectors: ['#verified-copy'] }), true);
+      assert.equal(await page.evaluate(articleDOMProof, { ...expected, bodySelectors: ['body'] }), false);
+    });
+    await t.test('Gmail identity ignores hidden account menus and rejects conflicting visible identities', async () => {
+      await page.setContent('<a href="https://accounts.google.com/SignOutOptions" aria-label="Google Account: owner@example.test">Account</a><button data-ogsr-up hidden aria-label="other@example.test">Hidden</button>');
+      await assertAccount(page, 'owner@example.test');
+      await assert.rejects(assertAccount(page, 'other@example.test'), { code: 'ACCOUNT_UNVERIFIED' });
+      await page.locator('button').evaluate(el => el.hidden = false);
+      await assert.rejects(assertAccount(page, 'owner@example.test'), { code: 'ACCOUNT_UNVERIFIED' });
     });
     await t.test('Gmail DOM proof does not mix recipient and body across messages', async () => {
       const expected = { subject: 'Subject', recipient: 'reader@example.test', body: 'Exact body' };
@@ -122,11 +146,11 @@ test('isolated Chrome/CDP and DOM contracts', { skip: !executable, timeout: 6000
     async function fixtureNavigation(subtest, url) {
       try { await page.goto(url); return true; }
       catch (error) {
-        if (error.message.includes('ERR_BLOCKED_BY_ADMINISTRATOR')) { subtest.skip('Environment policy blocks even locally routed navigations; DOM/CDP tests still run'); return false; }
+        if (error.message.includes('ERR_BLOCKED_BY_ADMINISTRATOR') && process.env.PROMO_REQUIRE_BROWSER_TESTS !== '1') { subtest.skip('Environment policy blocks even locally routed navigations; DOM/CDP tests still run'); return false; }
         throw error;
       }
     }
-    let articleBody = '<h1>Fixture article</h1><p>First independently verified paragraph.</p><p>Last independently verified paragraph.</p>';
+    let articleBody = '<h1>Fixture article</h1><article><p>First independently verified paragraph.</p><p>Last independently verified paragraph.</p></article>';
     // All official-looking URLs are fulfilled locally. No platform is contacted.
     await ctx.route('https://cloud.tencent.com/**', route => route.fulfill({ contentType: 'text/html', body: articleBody }));
     await t.test('article requires independent URL/title/body sample readback', async subtest => {

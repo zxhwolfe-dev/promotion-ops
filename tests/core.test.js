@@ -221,3 +221,10 @@ test('redacting structured results preserves JSON syntax and escaped secrets', (
   assert.equal(JSON.parse(redact(JSON.stringify({ value: process.env.TEST_API_TOKEN }))).value, '[REDACTED]');
   delete process.env.TEST_API_TOKEN;
 });
+
+test('a primitive callback error still preserves a page when keepOnError is requested', async () => {
+  const f = fake();
+  await withPage(async () => { throw null; }, { ...f.options, keepOnError: true }).then(() => assert.fail(), error => assert.equal(error, null));
+  assert.equal(f.events.includes('page.close'), false);
+  assert.equal(f.events.at(-1), 'browser.disconnect');
+});

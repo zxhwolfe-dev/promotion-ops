@@ -3,8 +3,9 @@
 const { withPage } = require('../../lib/cdp');
 const { run, readText, navigate, choose, button, fillEmpty, assertNoChallenge, until, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
-const { validateTitle, fingerprints, plainMarkdown, insertEmpty, articleURL, verifyArticle } = require('../../lib/articles');
+const { validateTitle, fingerprints, plainMarkdown, insertEmpty, articleURL, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
+  articleBodySelectors('aliyun');
   const title = validateTitle(args[0]);
   const body = await readText(args[1]);
   fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
