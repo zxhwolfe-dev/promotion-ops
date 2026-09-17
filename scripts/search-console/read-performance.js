@@ -1,17 +1,19 @@
-// scripts/search-console/read-performance.js — GSC 效果报告（登录态在浏览器里）
-// 用法: node read-performance.js
-// 经验: performance 深链二刷即 400（Google 侧问题）——必须从属性首页侧栏点"效果"进入
+'use strict';
 const { withPage } = require('../../lib/cdp');
-
-withPage(async (page) => {
-  await page.goto('https://search.google.com/search-console?resource_id=sc-domain:aiworkstation.cn', { waitUntil: 'domcontentloaded', timeout: 50000 });
-  await page.waitForTimeout(10000);
-  await page.evaluate(() => {
-    const t = [...document.querySelectorAll('a, span, div')].find(e => (e.textContent || '').trim() === '效果' && (e.offsetWidth || e.offsetHeight));
-    if (t) t.click();
+const { run, navigate, choose, until } = require('../../lib/ops');
+async function main() {
+  const property = process.env.GSC_PROPERTY || 'sc-domain:aiworkstation.cn';
+  return withPage(async page => {
+    await navigate(page, 'https://search.google.com/search-console?resource_id=' + encodeURIComponent(property), ['search.google.com']);
+    const performance = await choose(page, [page.getByRole('link', { name: /^(效果|Performance)$/ }), page.getByText('效果', { exact: true })], '效果报告入口');
+    await performance.click();
+    const excerpt = await until(async () => {
+      const text = await page.locator('body').innerText();
+      return (text.match(/(?:热门查询|Top queries)[\s\S]{0,1200}/) || [])[0];
+    }, { label: '未找到查询报告，可能页面改版或登录失效' });
+    return { status: 'unavailable', property, collectedAt: new Date().toISOString(), metrics: null,
+      reason: 'structured_metrics_adapter_not_configured', excerpt, note: '未解析日期范围和数值口径，不能直接合入数据看板' };
   });
-  await page.waitForTimeout(12000);
-  const t2 = await page.evaluate(() => document.body.innerText.replace(/\n{2,}/g, '\n'));
-  const queries = (t2.match(/(热门查询|Top queries)[\s\S]{0,400}/) || [''])[0];
-  console.log(queries.slice(0, 400));
-}, { reuse: p => p.url().includes('search.google.com') });
+}
+if (require.main === module) run(main);
+module.exports = main;

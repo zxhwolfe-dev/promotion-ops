@@ -1,57 +1,35 @@
-// scripts/aliyun/publish-article.js — mditor 编辑器发文
-// 用法: node publish-article.js <title> <bodyMdFile> <abstract(≤?字)>
-// 经验:
-//   - mditor 的编辑面是"内部可见 textarea"(.mditor textarea.textarea)；.mditor-hidden 是镜像，程序化改镜像无效
-//   - 标题是独立 <input>（y 位置在正文上方），不是 textarea
-//   - 正文用 keyboard.insertText；标题/摘要用原生 setter + input 事件
-//   - 草稿抽屉的遮罩用 Escape 关
-//   - 连续发布会触发阿里滑块验证码 → 按规则交人工，拖完发布自动完成
+'use strict';
+// node scripts/aliyun/publish-article.js <title> <bodyMdFile> [abstract]
 const { withPage } = require('../../lib/cdp');
-const fs = require('fs');
-const [title, bodyFile, abstract] = process.argv.slice(2);
-if (!title || !bodyFile) { console.error('usage: publish-article.js <title> <bodyMdFile> <abstract>'); process.exit(1); }
-const BODY = fs.readFileSync(bodyFile, 'utf8');
-
-withPage(async (page) => {
-  await page.goto('https://developer.aliyun.com/article/new', { waitUntil: 'domcontentloaded', timeout: 50000 });
-  await page.waitForTimeout(10000);
-
-  const md = page.locator('.mditor textarea.textarea').first();
-  await md.click({ timeout: 10000 });
-  await page.keyboard.insertText(BODY);
-  await page.waitForTimeout(2000);
-  await page.evaluate((d) => {
-    const inp = [...document.querySelectorAll('input')].find(i => i.offsetWidth && i.type === 'text' && i.getBoundingClientRect().y > 100 && i.getBoundingClientRect().y < 340);
-    if (inp) {
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(inp, d.title);
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    const ta = document.querySelector('textarea[placeholder="请填写摘要"]');
-    if (ta) {
-      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set.call(ta, d.abs || '');
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }, { title, abs: abstract || '' });
-  await page.waitForTimeout(2000);
-
-  const st = await page.evaluate(() => ({
-    bodyLen: (document.querySelector('.mditor textarea.textarea') || { value: '' }).value.length,
-    preview: document.body.innerText.length > 0,
-  }));
-  if (st.bodyLen < 200) { console.error('BODY FILL FAILED'); process.exit(1); }
-
-  await page.locator('text=存为草稿').first().click({ timeout: 6000 }).catch(() => {});
-  await page.waitForTimeout(7000);
-  await page.locator('button', { hasText: '发布文章' }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(4000);
-  const ok = page.locator('button', { hasText: '确认' }).first();
-  if (await ok.count()) await ok.click({ timeout: 6000 });
-  await page.waitForTimeout(18000);
-
-  const r = await page.evaluate(() => ({
-    captcha: !!document.querySelector('#aliyunCaptcha-mask'),
-    articleId: (location.href.match(/article\/(\d+)/) || [])[1] || null,
-  }));
-  console.log(JSON.stringify(r));
-  if (r.captcha) { console.error('滑块验证码出现：需人工拖动，拖完发布会自动完成'); process.exit(3); }
-}, { reuse: p => p.url().includes('developer.aliyun.com') });
+const { run, readText, navigate, choose, button, fillEmpty, assertNoChallenge, until, OpsError } = require('../../lib/ops');
+const { writeOnce } = require('../../lib/state');
+const { validateTitle, fingerprints, plainMarkdown, insertEmpty, articleURL, verifyArticle } = require('../../lib/articles');
+async function main(args = process.argv.slice(2)) {
+  const title = validateTitle(args[0]);
+  const body = await readText(args[1]);
+  fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
+  const abstract = args[2] || '';
+  return writeOnce({ kind: 'aliyun.article', title, body, abstract }, ({ submit }) => withPage(async page => {
+    await navigate(page, 'https://developer.aliyun.com/article/new', ['developer.aliyun.com']);
+    const editor = await choose(page, [page.locator('.mditor textarea.textarea')], '可见 Markdown 编辑器');
+    const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.getByRole('textbox', { name: /标题/ })], '文章标题');
+    await fillEmpty(titleBox, title);
+    await insertEmpty(page, editor, body);
+    if (abstract) await fillEmpty(await choose(page, [page.getByPlaceholder('请填写摘要', { exact: true })], '摘要'), abstract);
+    const publish = await button(page, '发布文章');
+    // 首个“发布文章”也可能直接提交，必须在这次点击之前写台账。
+    await submit(() => publish.click());
+    const confirm = page.getByRole('button', { name: '确认', exact: true }).filter({ visible: true });
+    const stage = await until(async () => {
+      await assertNoChallenge(page);
+      if (articleURL('aliyun', page.url())) return 'published';
+      const count = await confirm.count();
+      if (count > 1) throw new OpsError('AMBIGUOUS_SELECTOR', '多个确认按钮，拒绝猜测', 2);
+      return count === 1 ? 'confirm' : null;
+    }, { label: '未等到确认面板或文章结果，禁止重新点击发布' });
+    if (stage === 'confirm') await confirm.click();
+    return verifyArticle(page, 'aliyun', title, plainMarkdown(body));
+  }, { keepOnError: true }));
+}
+if (require.main === module) run(main);
+module.exports = main;

@@ -1,0 +1,6 @@
+[
+  { "id": "tencent-example", "kind": "tencent", "url": "https://cloud.tencent.com/developer/article/2744103", "metricSelectors": {} },
+  { "id": "aliyun-example", "kind": "aliyun", "url": "https://developer.aliyun.com/article/1764254", "metricSelectors": {} },
+  { "id": "csdn-example", "kind": "csdn", "url": "https://blog.csdn.net/aiworkstation/article/details/164187717", "metricSelectors": { "reads": ".read-count" } },
+  { "id": "oschina-example", "kind": "oschina", "url": "https://my.oschina.net/u/9763974/blog/19759257", "metricSelectors": {} }
+]
