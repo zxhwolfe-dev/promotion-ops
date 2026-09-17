@@ -3,7 +3,7 @@
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
-const { validateTitle, fingerprints, plainMarkdown, selectTag, verifyArticle, articleBodySelectors } = require('../../lib/articles');
+const { validateTitle, fingerprints, plainMarkdown, selectTag, verifyArticle, articleBodySelectors, captureResponseArticleId } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
   articleBodySelectors('tencent');
   const title = validateTitle(args[0]);
@@ -12,6 +12,7 @@ async function main(args = process.argv.slice(2)) {
   const account = requiredEnv('TENCENT_UID', /^\d+$/);
   return writeOnce({ kind: 'tencent.article', account, title, body }, ({ submit }) => withPage(async page => {
     await navigate(page, 'https://cloud.tencent.com/developer/article/write', ['cloud.tencent.com']);
+    const getResponseArticleId = captureResponseArticleId(page, 'tencent'); // 必须在任何提交点击之前建立监听
     const dismiss = page.getByText('暂不体验', { exact: true }).filter({ visible: true });
     if (await dismiss.count() === 1) await dismiss.click();
     const markdown = page.getByText('切换到Markdown编辑器', { exact: true }).filter({ visible: true });
@@ -39,7 +40,8 @@ async function main(args = process.argv.slice(2)) {
     await selectTag(page, tag);
     const confirm = await button(page, '确认发布');
     await confirm.click(); // 本次面板最终确认；绝不补 evaluate.click() 重试。
-    return verifyArticle(page, 'tencent', title, plainMarkdown(body));
+    const responseArticleId = getResponseArticleId();
+    return verifyArticle(page, 'tencent', title, plainMarkdown(body), { expectedArticleId: responseArticleId || undefined });
   }, { keepOnError: true }));
 }
 if (require.main === module) run(main);

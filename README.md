@@ -83,7 +83,7 @@ node scripts/ops/reconcile.js <operationId> not-written <httpsEvidenceUrl> --i-c
 
 复制 `config/targets.example.json` 为 `config/targets.local.json`，按真正的文章列表更新，并为每个指标填入经过人工核验的局部选择器。示例不是完整运营资产清单。没有可确认的选择器时返回 `null` 和原因，不在整页正文里抓第一个数字。快照含时间、来源、字段状态并原子写入本地 `artifacts/`；阅读缩写标记 `approximate`。
 
-GSC 和百度看板脚本目前只是诊断性页面摘录，明确返回 `unavailable`；结构化指标、日期区间和分页适配尚未完成。百度推送改为原生 HTTPS fetch，不把 token 放进子进程参数；不降级 HTTP、不跟随重定向、不自动重发。本次未携带 token 实测百度 TLS/API，若 HTTPS 不可用应停止并人工处理，不为成功率退回明文。
+GSC 效果报告已输出结构化指标（汇总卡 + 热门查询表 + 界面自报的行范围；日期窗口按下状态判不出时如实标 `unknown_active_window`，不改窗口不翻页）。百度看板脚本在未登录时直接 `LOGIN_REQUIRED`（退出码 3）；登录后从 dashboard 侧栏进索引量与关键词页解析表格，结构不识别则对应块 `unavailable` 并给原因。两者均为只读。百度推送改为原生 HTTPS fetch，不把 token 放进子进程参数；不降级 HTTP、不跟随重定向、不自动重发。本次未携带 token 实测百度 TLS/API，若 HTTPS 不可用应停止并人工处理，不为成功率退回明文。
 
 Chrome profile、Cookie、storage state、trace、截图、邮箱输出都可能包含秘密。不要共享专用 profile、同步到公共云盘或给不可信扩展/程序访问。新状态文件使用 0600、目录使用 0700；Windows 仍需核验 ACL。`.gitignore` 不是秘密扫描器，不能撤销已提交的秘密；发现泄露须轮换凭据并处理历史。OSCHINA HTML 只接受基础标签及安全 HTTPS 链接，拒绝脚本、事件属性、style、iframe；输入须来自可信编辑者。
 
