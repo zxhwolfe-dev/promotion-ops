@@ -90,7 +90,7 @@ test('session5 Gmail bounded pagination and merged-thread readback', { skip: !ex
     const subject = 'Fixture subject';
     const sameMessage = `<h2 class="hP">${subject}</h2><div class="adn"><span class="g2" email="reader@example.test"></span><div class="a3s">Fixture body</div></div>`;
     const row = (id, subj) => `<tr class="zA" data-legacy-thread-id="${id}"><td class="bog">${subj}</td></tr>`;
-    const app = (body, script = '', disabled = false) => `<!doctype html><input name="q"><table>${body}</table><button id="older" aria-disabled="${disabled}">Older</button>${script}`;
+    const app = (body, script = '', disabled = false) => `<!doctype html><div role="main"><input name="q"><table>${body}</table></div><button id="older" aria-disabled="${disabled}">Older</button>${script}`;
 
     await t.test('pagination walks pages until Older is disabled and reports paged_to_end', async () => {
       await context.route('https://mail.google.com/**', route => route.fulfill({ contentType: 'text/html', body: app(row('a1', subject) + row('a2', subject),

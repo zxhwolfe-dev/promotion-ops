@@ -46,3 +46,12 @@ test('capture getter stops listening after read', async () => {
   assert.equal(events[1][0], 'off');
   assert.equal(events[0][1], events[1][1]);
 });
+
+test('queryFromHash matches real Gmail normalization (spaces become +)', async () => {
+  process.env.PROMO_STATE_DIR = process.env.PROMO_STATE_DIR || (await fs.mkdtemp(path.join(os.tmpdir(), 'promo-s5b-')));
+  const { queryFromHash } = require('../lib/gmail');
+  assert.equal(queryFromHash('#search/in%3Aanywhere+newer_than%3A7d'), 'in:anywhere newer_than:7d');
+  assert.equal(queryFromHash('#search/hello+world'), 'hello world');
+  assert.equal(queryFromHash('#search/plain'), 'plain');
+  assert.equal(queryFromHash('#inbox'), '');
+});
