@@ -1,0 +1,20 @@
+{
+  "name": "promotion-ops",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Verification-first, single-writer promotion operations over an existing Chrome CDP session",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/ops/check-syntax.js",
+    "doctor": "node scripts/ops/doctor.js",
+    "test:unit": "node --test tests/core.test.js tests/regressions.test.js tests/session4.test.js",
+    "inspect": "node scripts/ops/inspect-state.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

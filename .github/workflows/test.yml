@@ -1,0 +1,51 @@
+name: verification-contracts
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: isolated-browser-and-unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - name: Install isolated test browser
+        run: npx --no-install playwright-core install --with-deps chromium > /tmp/promo-browser-install.log 2>&1 || { cat /tmp/promo-browser-install.log; exit 1; }
+      - name: All contracts (browser tests must run; no production credentials)
+        env:
+          PROMO_REQUIRE_BROWSER_TESTS: '1'
+        run: |
+          export PROMO_TEST_BROWSER="$(node -e "process.stdout.write(require('playwright-core').chromium.executablePath())")"
+          npm test
+      - name: Ensure clean lockfile
+        run: git diff --exit-code -- package.json package-lock.json
+  windows-unit:
+    name: windows-node22-unit
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - run: npm run test:unit
+      - run: git diff --exit-code -- package.json package-lock.json
