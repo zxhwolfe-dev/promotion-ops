@@ -1,7 +1,7 @@
 'use strict';
 // node scripts/oschina/publish-article.js <title> <bodyHtmlFile>
 const { withPage } = require('../../lib/cdp');
-const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, OpsError } = require('../../lib/ops');
+const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, OpsError , until } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
 const { validateTitle, fingerprints, insertSafeHTML, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
@@ -13,7 +13,11 @@ async function main(args = process.argv.slice(2)) {
   return writeOnce({ kind: 'oschina.article', account, title, html }, ({ submit }) => withPage(async page => {
     await navigate(page, url, ['my.oschina.net']);
     if (new URL(page.url()).pathname !== new URL(url).pathname) throw new OpsError('EDITOR_REDIRECT', '编辑入口发生重定向，拒绝修改可能属于旧文的页面', 3);
-    await fillEmpty(await choose(page, [page.getByPlaceholder('请输入文章标题', { exact: true })], '文章标题'), title);
+    // 水合期间会短暂出现两个标题输入框（服务端+客户端各一）：等数量稳定为 1 再取，避免瞬态歧义。
+    const titleLocator = page.locator('input[placeholder="请输入文章标题"]');
+    await until(async () => (await titleLocator.count()) === 1 && (await titleLocator.filter({ visible: true }).count()) === 1,
+      { timeout: 20000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'OSCHINA 编辑器水合未稳定（标题框数量异常）' });
+    await fillEmpty(titleLocator.first(), title);
     const editor = await choose(page, [page.locator('.tiptap.ProseMirror')], '正文编辑器');
     const text = await insertSafeHTML(page, editor, html);
     fingerprints(text);

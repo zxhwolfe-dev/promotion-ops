@@ -1,7 +1,7 @@
 'use strict';
 // node scripts/csdn/publish-article.js <title> <bodyMdFile> [abstract]
 const { withPage } = require('../../lib/cdp');
-const { run, requiredEnv, readText, navigate, choose, button, fillEmpty } = require('../../lib/ops');
+const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
 const { validateTitle, fingerprints, plainMarkdown, insertEmpty, selectTag, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
@@ -13,6 +13,15 @@ async function main(args = process.argv.slice(2)) {
   const account = requiredEnv('CSDN_USERNAME', /^[A-Za-z0-9_-]+$/);
   return writeOnce({ kind: 'csdn.article', account, title, body, abstract }, ({ submit }) => withPage(async page => {
     await navigate(page, 'https://editor.csdn.net/md?not_checkout=1', ['editor.csdn.net']);
+    // CSDN 会在加载后异步恢复上次自动保存的草稿：先等恢复稳定，空态检查才可靠，
+    // 否则会出现"填入与恢复叠加成双份"的竞态。
+    await until(async () => {
+      const read1 = await page.evaluate(() => document.querySelector('pre.editor__inner')?.textContent ?? null);
+      if (read1 === null) return false;
+      await page.waitForTimeout(1500);
+      const read2 = await page.evaluate(() => document.querySelector('pre.editor__inner')?.textContent ?? null);
+      return read1 === read2;
+    }, { timeout: 20000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'CSDN 编辑器草稿恢复未稳定' });
     const editor = await choose(page, [page.locator('pre.editor__inner[contenteditable]')], 'Markdown 正文');
     await insertEmpty(page, editor, body);
     await (await choose(page, [page.locator('.article-bar__title-display')], '标题激活区')).click();

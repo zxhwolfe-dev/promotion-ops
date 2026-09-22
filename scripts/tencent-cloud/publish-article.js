@@ -17,6 +17,14 @@ async function main(args = process.argv.slice(2)) {
     if (await dismiss.count() === 1) await dismiss.click();
     const markdown = page.getByText('切换到Markdown编辑器', { exact: true }).filter({ visible: true });
     if (await markdown.count() === 1) await markdown.click();
+    // 服务端草稿异步恢复：等 Monaco 内容两次采样一致后再做空态检查，避免恢复竞态误判。
+    await until(async () => {
+      const read1 = await page.evaluate(() => window.monaco?.editor?.getModels?.().length === 1 ? window.monaco.editor.getModels()[0].getValue() : null);
+      if (read1 === null) return false;
+      await page.waitForTimeout(1500);
+      const read2 = await page.evaluate(() => window.monaco?.editor?.getModels?.().length === 1 ? window.monaco.editor.getModels()[0].getValue() : null);
+      return read1 === read2;
+    }, { timeout: 20000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'Monaco 草稿恢复未稳定' });
     const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.locator('textarea.article-title')], '标题');
     await fillEmpty(titleBox, title);
     const editor = await choose(page, [page.locator('.monaco-editor .inputarea'), page.locator('.inputarea')], 'Monaco 编辑器');
@@ -28,7 +36,8 @@ async function main(args = process.argv.slice(2)) {
     if (previous === null) throw new OpsError('MONACO_MODEL_AMBIGUOUS', '没有唯一的 Monaco 模型，拒绝猜测编辑对象');
     if (previous.trim()) throw new OpsError('EXISTING_DRAFT', 'Monaco 已有草稿，拒绝覆盖', 3);
     await editor.click(); await page.keyboard.insertText(body);
-    await until(async () => (await readModel()) === body, { code: 'FILL_MISMATCH', exitCode: 1, label: 'Monaco 正文回读不一致' });
+    // Monaco 在 Windows 上默认 CRLF：比较前统一换行符。
+    await until(async () => (await readModel()).replace(/\r\n/g, '\n') === body, { code: 'FILL_MISMATCH', exitCode: 1, label: 'Monaco 正文回读不一致' });
     const openPublish = await button(page, '发布');
     await submit(() => openPublish.click()); // 从第一个发布按钮起，整个单次提交流程都进入保护区间。
     const original = await choose(page, [page.getByRole('radio', { name: '原创', exact: true }), page.getByText('原创', { exact: true })], '文章来源：原创');
