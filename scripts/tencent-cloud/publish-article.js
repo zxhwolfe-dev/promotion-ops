@@ -19,12 +19,16 @@ async function main(args = process.argv.slice(2)) {
     if (await markdown.count() === 1) await markdown.click();
     // 服务端草稿异步恢复：等 Monaco 内容两次采样一致后再做空态检查，避免恢复竞态误判。
     await until(async () => {
-      const read1 = await page.evaluate(() => window.monaco?.editor?.getModels?.().length === 1 ? window.monaco.editor.getModels()[0].getValue() : null);
-      if (read1 === null) return false;
-      await page.waitForTimeout(1500);
-      const read2 = await page.evaluate(() => window.monaco?.editor?.getModels?.().length === 1 ? window.monaco.editor.getModels()[0].getValue() : null);
-      return read1 === read2;
-    }, { timeout: 20000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'Monaco 草稿恢复未稳定' });
+      // 三次采样、间隔 2.5s：服务端草稿恢复可能晚于页面就绪，短窗口会漏检。
+      const reads = [];
+      for (let i = 0; i < 3; i++) {
+        const v = await page.evaluate(() => window.monaco?.editor?.getModels?.().length === 1 ? window.monaco.editor.getModels()[0].getValue() : null);
+        if (v === null) return false;
+        reads.push(v);
+        if (i < 2) await page.waitForTimeout(2500);
+      }
+      return reads[0] === reads[1] && reads[1] === reads[2];
+    }, { timeout: 30000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'Monaco 草稿恢复未稳定' });
     const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.locator('textarea.article-title')], '标题');
     await fillEmpty(titleBox, title);
     const editor = await choose(page, [page.locator('.monaco-editor .inputarea'), page.locator('.inputarea')], 'Monaco 编辑器');
