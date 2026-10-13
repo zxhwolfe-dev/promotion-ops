@@ -1,13 +1,16 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/tencent-cloud/publish-article.js <title> <bodyMdFile>
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
+const { fillMonaco } = require('../../lib/editors');
 const { validateTitle, fingerprints, plainMarkdown, selectTag, verifyArticle, articleBodySelectors, captureResponseArticleId } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
   articleBodySelectors('tencent');
   const title = validateTitle(args[0]);
   const body = await readText(args[1]);
+  assertPromotionLinks(body, 'tencent', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
   const account = requiredEnv('TENCENT_UID', /^\d+$/);
   return writeOnce({ kind: 'tencent.article', account, title, body }, ({ submit }) => withPage(async page => {
@@ -31,17 +34,7 @@ async function main(args = process.argv.slice(2)) {
     }, { timeout: 30000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'Monaco 草稿恢复未稳定' });
     const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.locator('textarea.article-title')], '标题');
     await fillEmpty(titleBox, title);
-    const editor = await choose(page, [page.locator('.monaco-editor .inputarea'), page.locator('.inputarea')], 'Monaco 编辑器');
-    const readModel = () => page.evaluate(() => {
-      const models = window.monaco?.editor?.getModels() || [];
-      return models.length === 1 ? models[0].getValue() : null;
-    });
-    const previous = await readModel();
-    if (previous === null) throw new OpsError('MONACO_MODEL_AMBIGUOUS', '没有唯一的 Monaco 模型，拒绝猜测编辑对象');
-    if (previous.trim()) throw new OpsError('EXISTING_DRAFT', 'Monaco 已有草稿，拒绝覆盖', 3);
-    await editor.click(); await page.keyboard.insertText(body);
-    // Monaco 在 Windows 上默认 CRLF：比较前统一换行符。
-    await until(async () => (await readModel()).replace(/\r\n/g, '\n') === body, { code: 'FILL_MISMATCH', exitCode: 1, label: 'Monaco 正文回读不一致' });
+    await fillMonaco(page, body);
     const openPublish = await button(page, '发布');
     await submit(() => openPublish.click()); // 从第一个发布按钮起，整个单次提交流程都进入保护区间。
     const original = await choose(page, [page.getByRole('radio', { name: '原创', exact: true }), page.getByText('原创', { exact: true })], '文章来源：原创');

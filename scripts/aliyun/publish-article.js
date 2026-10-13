@@ -1,18 +1,22 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/aliyun/publish-article.js <title> <bodyMdFile> [abstract]
 const { withPage } = require('../../lib/cdp');
 const { run, readText, navigate, choose, button, fillEmpty, assertNoChallenge, until, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
+const { chooseEditor, editorSelectors } = require('../../lib/editors');
 const { validateTitle, fingerprints, plainMarkdown, insertEmpty, articleURL, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
   articleBodySelectors('aliyun');
+  editorSelectors('aliyun');
   const title = validateTitle(args[0]);
   const body = await readText(args[1]);
+  assertPromotionLinks(body, 'aliyun', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
   const abstract = args[2] || '';
   return writeOnce({ kind: 'aliyun.article', title, body, abstract }, ({ submit }) => withPage(async page => {
     await navigate(page, 'https://developer.aliyun.com/article/new', ['developer.aliyun.com']);
-    const editor = await choose(page, [page.locator('.mditor textarea.textarea')], '可见 Markdown 编辑器');
+    const editor = await chooseEditor(page, 'aliyun');
     const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.getByRole('textbox', { name: /标题/ })], '文章标题');
     await fillEmpty(titleBox, title);
     await insertEmpty(page, editor, body);

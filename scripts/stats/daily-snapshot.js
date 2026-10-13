@@ -63,7 +63,8 @@ async function collectTarget(page, target, { timeout = 10000 } = {}) {
   } finally { if (watching) page.off('framenavigated', onNavigation); }
 }
 async function main() {
-  const file = process.env.PROMO_TARGETS_FILE || path.join(__dirname, '../../config/targets.example.json');
+  const file = process.env.PROMO_TARGETS_FILE;
+  if (!file) throw new OpsError('TARGETS_REQUIRED', '请显式配置 PROMO_TARGETS_FILE；不能用示例列表冒充当前运营资产');
   const targets = validateTargets(JSON.parse(await readText(file)));
   const results = await withPage(async page => {
     const out = [];

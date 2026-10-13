@@ -1,4 +1,5 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/oschina/publish-article.js <title> <bodyHtmlFile>
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, OpsError , until } = require('../../lib/ops');
@@ -8,6 +9,7 @@ async function main(args = process.argv.slice(2)) {
   articleBodySelectors('oschina');
   const title = validateTitle(args[0]);
   const html = await readText(args[1]);
+  assertPromotionLinks(html, 'oschina', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   const account = requiredEnv('OSCHINA_UID', /^\d+$/);
   const url = `https://my.oschina.net/u/${account}/blog/ai-write`;
   return writeOnce({ kind: 'oschina.article', account, title, html }, ({ submit }) => withPage(async page => {

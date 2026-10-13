@@ -1,4 +1,5 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // 当前能力是在文章下发评论，不是假装已经定位到某条父评论的“定向回复”。
 const { withPage, withReadPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, trustedURL, navigate, choose, button, fillEmpty, until } = require('../../lib/ops');
@@ -7,6 +8,7 @@ const { oschinaComments, findOSChinaComment } = require('../../lib/comments');
 async function main(args = process.argv.slice(2)) {
   const url = trustedURL(args[0], ['my.oschina.net'], /^\/(?:u\/\d+|[^/]+)\/blog\/\d+\/?$/).href;
   const text = await readText(args[1]);
+  assertPromotionLinks(text, 'oschina', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   const author = requiredEnv('OSCHINA_UID', /^\d+$/);
   return writeOnce({ kind: 'oschina.comment', author, url, text }, ({ submit }) => withPage(async page => {
     await navigate(page, url, ['my.oschina.net']);

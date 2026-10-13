@@ -1,5 +1,7 @@
 # promotion-ops — 免费渠道运营工具集
 
+> 当前双语策略与新增工具入口：[2026-10-13 操作说明](docs/operating-guide-20261013.md)。以下旧版验收记录保留历史语境；平台实际验收范围见最新运行说明，未验收入口仍须逐项核对。
+
 服务 aiworkstation.cn / useaistation.com 的运营工作。坚持免费渠道，不投广告、不买榜、不刷量，不绕过验证码。保留 `node scripts/<平台>/<能力>.js` 的独立入口，不引入多 Agent、队列服务器或数据库。
 
 **本版为验证优先的加固版，不是各平台线上回归已通过的发布声明。** 第三方页面选择器必须在实际登录态下小范围验收；具体限制与原版问题见 [审查报告](docs/review-2026-09-17.md)。
@@ -47,7 +49,7 @@ node --env-file=.env scripts/gmail/search.js 'in:anywhere newer_than:7d'
 node --env-file=.env scripts/stats/daily-snapshot.js
 ```
 
-`Gmail sweep` 默认检查近七天、含垃圾箱/回收站的搜索结果，最多读当前页 50 条；`coverage` 和 `complete` 会明确标示范围，**不是全邮箱穷举**。Gmail 发送前要求已发送基线完整且每行有 ID；缺少分页结束信号、同主题合并或正文/收件人不能绑定到同一邮件时停下核验，不假报成功。
+`Gmail sweep` 默认 in:anywhere、含垃圾箱/回收站，核对账号后最多500会话/50页；可按时间拆段补查，线程摘要不代表正文已读；`coverage` 和 `complete` 会明确标示范围，**不是全邮箱穷举**。Gmail 发送前要求已发送基线完整且每行有 ID；缺少分页结束信号、同主题合并或正文/收件人不能绑定到同一邮件时停下核验，不假报成功。
 
 | 退出码 | 含义 | 后续处理 |
 |---|---|---|
@@ -81,7 +83,7 @@ node scripts/ops/reconcile.js <operationId> not-written <httpsEvidenceUrl> --i-c
 
 ## 统计与安全边界
 
-复制 `config/targets.example.json` 为 `config/targets.local.json`，按真正的文章列表更新，并为每个指标填入经过人工核验的局部选择器。示例不是完整运营资产清单。没有可确认的选择器时返回 `null` 和原因，不在整页正文里抓第一个数字。快照含时间、来源、字段状态并原子写入本地 `artifacts/`；阅读缩写标记 `approximate`。
+复制 `config/targets.example.json` 为 `config/targets.local.json`，按真正的文章列表更新，并为每个指标填入经过人工核验的局部选择器。必须显式设置 PROMO_TARGETS_FILE，示例不是完整运营资产清单。没有可确认的选择器时返回 `null` 和原因，不在整页正文里抓第一个数字。快照含时间、来源、字段状态并原子写入本地 `artifacts/`；阅读缩写标记 `approximate`。
 
 GSC 效果报告已输出结构化指标（汇总卡 + 热门查询表 + 界面自报的行范围；日期窗口按下状态判不出时如实标 `unknown_active_window`，不改窗口不翻页）。百度看板脚本在未登录时直接 `LOGIN_REQUIRED`（退出码 3）；登录后从 dashboard 侧栏进索引量与关键词页解析表格，结构不识别则对应块 `unavailable` 并给原因。两者均为只读。百度推送改为原生 HTTPS fetch，不把 token 放进子进程参数；不降级 HTTP、不跟随重定向、不自动重发。本次未携带 token 实测百度 TLS/API，若 HTTPS 不可用应停止并人工处理，不为成功率退回明文。
 

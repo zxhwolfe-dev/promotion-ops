@@ -123,7 +123,7 @@ test('session5 Gmail bounded pagination and merged-thread readback', { skip: !ex
       assert.equal(result.coverage, 'first_page_only');
       assert.equal(result.rows.length <= 3, true);
     });
-    await t.test('merged thread verifies with baseline thread id when no new thread appears', async () => {
+    await t.test('old identical message in a merged baseline thread cannot verify a new send', async () => {
       await context.unroute('https://mail.google.com/**');
       await context.route('https://mail.google.com/**', route => route.fulfill({ contentType: 'text/html', body: app(row('base1', subject), 
         `<script>document.querySelector('input').value=${JSON.stringify(query)};location.hash='search/'+encodeURIComponent(${JSON.stringify(query)});
@@ -132,10 +132,7 @@ test('session5 Gmail bounded pagination and merged-thread readback', { skip: !ex
       await page.goto('https://mail.google.com/mail/u/0/#inbox');
       const { verifySent } = require('../lib/gmail');
       const proof = await verifySent(page, { query, previousIds: new Set(['base1']), recipient: 'reader@example.test', subject, body: 'Fixture body' });
-      assert.equal(proof.status, 'verified');
-      assert.equal(proof.evidence.kind, 'merged_thread_readback');
-      assert.equal(proof.evidence.threadId, 'base1');
-      assert.equal(proof.evidence.mergedIntoBaselineThread, true);
+      assert.equal(proof, null);
     });
     await page.close();
   } finally { await browser.close(); }

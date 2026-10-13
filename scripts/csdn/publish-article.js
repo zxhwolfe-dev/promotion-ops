@@ -1,4 +1,5 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/csdn/publish-article.js <title> <bodyMdFile> [abstract]
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until } = require('../../lib/ops');
@@ -8,6 +9,7 @@ async function main(args = process.argv.slice(2)) {
   articleBodySelectors('csdn');
   const title = validateTitle(args[0]);
   const body = await readText(args[1]);
+  assertPromotionLinks(body, 'csdn', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
   const abstract = args[2] || '';
   const account = requiredEnv('CSDN_USERNAME', /^[A-Za-z0-9_-]+$/);

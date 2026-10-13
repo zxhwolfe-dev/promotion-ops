@@ -1,4 +1,5 @@
 'use strict';
+const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/reddit/post-comment.js <threadUrl> <bodyFile>
 const { withPage, withReadPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, until, normalize, OpsError } = require('../../lib/ops');
@@ -8,6 +9,7 @@ const { redditThread, redditComments, findRedditComment } = require('../../lib/c
 async function main(args = process.argv.slice(2)) {
   const thread = redditThread(args[0]);
   const text = await readText(args[1]);
+  assertPromotionLinks(text, 'reddit', process.env.PROMO_CONTENT_LANGUAGE || 'en');
   const author = requiredEnv('REDDIT_USERNAME', /^[A-Za-z0-9_-]+$/);
   const profile = `https://old.reddit.com/user/${author}/comments/`;
   return writeOnce({ kind: 'reddit.comment', author, threadId: thread.id, text }, ({ submit }) => withPage(async page => {

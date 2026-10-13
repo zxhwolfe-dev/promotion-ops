@@ -8,7 +8,7 @@ async function main(args = process.argv.slice(2)) {
   const prepared = prepareURLs(await readText(args[0]), process.env.BAIDU_SITE || 'https://aiworkstation.cn');
   return writeOnce({ kind: 'baidu.push', site: prepared.site, urls: [...prepared.urls].sort() }, async ({ submit }) => {
     const result = await submit(() => pushURLs({ ...prepared, token }));
-    return { status: 'verified', ...result, evidence: { kind: 'api_acceptance', requested: prepared.urls.length, indexed: 'not_verified' } };
+    return { status: 'verified', ...result, evidence: { kind: 'api_acceptance', requested: prepared.urls.length, urls: prepared.urls, site: prepared.site, indexed: 'not_verified' } };
   });
 }
 if (require.main === module) run(main);

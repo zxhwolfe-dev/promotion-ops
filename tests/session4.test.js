@@ -142,7 +142,8 @@ function mockPage({ switchDuringRead = false, backToA = false, brokenMetric = fa
   page.goto = async url => { current = url; return { status: () => 200 }; };
   page.locator = selector => ({ filter() { return this; },
     count: async () => selector.startsWith('#aliyun') ? 0 : 1,
-    evaluateAll: async () => {
+    evaluateAll: async fn => {
+      if (selector.startsWith('iframe')) return fn([]);
       if (brokenMetric && selector === '#likes') throw new Error('detached');
       if (switchDuringRead && !switched) {
         switched = true; current = urlB; page.emit('framenavigated', frame);

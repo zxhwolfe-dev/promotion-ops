@@ -167,7 +167,7 @@ test('isolated Chrome/CDP and DOM contracts', { skip: !executable, timeout: 6000
     });
     await t.test('Gmail proof binds exact new thread and same-message recipient/body', async subtest => {
       const query = 'in:sent to:reader@example.test newer_than:1d';
-      const list = '<div role="main"><input name="q"><table><tr class="zA" data-legacy-thread-id="new1"><td class="bog">Fixture subject</td></tr></table></div>';
+      const list = '<div role="main"><input name="q"><table><tr class="zA" data-legacy-thread-id="new1"><td class="bog">Fixture subject</td></tr></table></div><button aria-disabled="true">Older</button>';
       const sameMessage = '<h2 class="hP">Fixture subject</h2><div class="adn"><span class="g2" email="reader@example.test"></span><div class="a3s">Fixture body</div></div>';
       await ctx.route('https://mail.google.com/**', route => route.fulfill({ contentType: 'text/html', body: list }));
       if (!await fixtureNavigation(subtest, 'https://mail.google.com/mail/u/0/#search/' + encodeURIComponent(query))) return;
@@ -175,15 +175,22 @@ test('isolated Chrome/CDP and DOM contracts', { skip: !executable, timeout: 6000
         document.querySelector('tr').onclick = () => document.body.innerHTML = sameMessage; }, { query, sameMessage });
       // searchMailbox reloads the exact URL: intercept reload with deterministic fixture initialization.
       await ctx.unroute('https://mail.google.com/**');
-      await ctx.route('https://mail.google.com/**', route => route.fulfill({ contentType: 'text/html', body: list + '<script>document.querySelector("input").value=' + JSON.stringify(query) + ';document.querySelector("tr").onclick=()=>document.body.innerHTML=' + JSON.stringify(sameMessage) + ';</script>' }));
+      await ctx.route('https://mail.google.com/**', route => route.fulfill({ contentType: 'text/html', body: list + '<script>document.querySelector("input").value=' + JSON.stringify(query) + ';window.onhashchange=()=>{if(location.hash==="#all/new1")document.body.innerHTML=' + JSON.stringify(sameMessage) + ';};</script>' }));
       const proof = await verifySent(page, { query, previousIds: new Set(), recipient: 'reader@example.test', subject: 'Fixture subject', body: 'Fixture body' });
       assert.equal(proof.evidence.threadId, 'new1');
     });
     await page.close();
   } finally {
     if (second) await second.close().catch(() => {});
+    if (child.exitCode === null && child.pid) {
+      const exited = once(child, 'exit');
+      // This process is our isolated fixture: shut Chrome down gracefully so
+      // its profile writers finish before removing the temporary directory.
+      if (browser?.isConnected()) await (await browser.newBrowserCDPSession()).send('Browser.close');
+      else child.kill('SIGTERM');
+      await exited;
+    }
     if (browser) await browser.close().catch(() => {});
-    if (child.exitCode === null && child.pid) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited; }
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
