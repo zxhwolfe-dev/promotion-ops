@@ -1,3 +1,7 @@
+# 2026-10-22 当前执行入口
+
+本轮全面整改后，当前流程优先读取 `docs/current-workflow.md`、主仓库 `docs/ai/promotion_operations.md` 和 `/home/zxhwolfe/creative_work/promotion-current-policy.json`。下方旧日状态与排期为历史；用户最新明确日更/平台/禁止模型路线约定始终优先。
+
 # 双语推广运营工具
 
 服务 aiworkstation.cn 中文站与 useaistation.com 英文站，当前重点爱图工坊。最新执行说明先读 docs/operating-guide-20261013.md，完整策略/台账/待办路径见该文。2026-10-13用户先授权梳理与本地代码优化；真实平台操作按后续阶段指令执行，不因运行测试自动打开有登录态Chrome。
