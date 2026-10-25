@@ -21,3 +21,11 @@
 
 10/23用户进一步明确“x以后也发啊”：X从一次图文试验纳入每日必做，英文雷达精选一条，3–4张原生项目卡、用途/边界、真实日期与UTM；每天采曝光/互动，24h/72h/7d按真实时龄复查。同榜不重复同组旧图，可换不同项目或实用主题，不拿预制图冒充当日榜。每日核验从6项增至7项（TT/YT视频+大AK四渠道+X雷达图文），B站仍独立回执；未知先回查，不重发、不补零。已更新本地计划器并用34项定向测试验证，未连接Chrome、未重发今日帖子、无提交推送部署，无无人值守时钟。
 原生X编辑器使用本次已核的键盘逐行输入/原生快捷提交流程；提交后留在原编辑器等明确sent/错误，随后独立核作者、正文、三图、ALT和原帖。
+
+10/25追加：未提交媒体的editorialReview.status=required时，日计划与续约清单明确先内容复审；原有预约/未知结果保持等待或回查，不能变成新上传。当前B站仅第8期未预约并待复审，新增5预约真实读回；原生上传助手在withBrowser前阻断第8期。26定向测试与82JS语法通过。原生B站分区用.video-human-type字段校验，不用整页人工智能字样；跨月用实际月箭头及年月标签。第6期已误分vlog且原生编辑禁用，仍未改成，不虚报修复。
+
+10/25爱图图片+提示词恢复：同一policy的`aituImagePromptProgramme`和实验A是唯一安排，图库原图/完整原提示词、原生自创、真实模板输入与前后结果三类择优，初始每周3条合格图文，不新增每日视频硬额或改变26条原生预约。实际已公开英文YouTube社区台灯帖；中文商品场景双图在B站原生动态单次提交后结果unknown，原稿保留，不计公开、不重发，下一次先独立回查。两次生成共60000既有额度/新增支付0，项目见`promotion-reporting/operator-activity-2026-10-25.json`，不能计客户转化。
+
+图库原图来源、SHA、完整提示词和实测身份必须一致。YouTube原生单图流程：`node scripts/youtube/publish-image-prompt.js prepare|submit|verify /absolute/draft.json`；prepare保留已有非空草稿，submit持久预留后单次原生点击，verify仅原帖回查。图片附件懒加载必须等待实际可见的image renderer及解码；隐藏占位img不当附件。unknown先verify后local reconcile并更新原预留，禁止重跑submit。社区图文不抵扣每日Shorts。
+
+大AK正式提交前改用持久预留CLI：`node scripts/campaign/reserve-ak-package.js /absolute/package.json /home/zxhwolfe/creative_work/promotion-media-registry.json`；它读取权威登记，不接受调用方空历史覆盖，同一登记锁下核验并先写三图reserved，本身不联网/不发布。旧check CLI仍可只读预检，但不能替代预留。原有writeOnce负责单次原生提交及独立原帖证明，再将对应operationId预留解为published/明确失败；unknown持续占用。除PNG SHA外，同渠道同报告日期/版次或规范正文重复均阻止；新下载/改编码不是新内容。45条旧登记已由15张实际来源补身份，9条无法核实仍unknown，不用文件名补日期。不同渠道合理同日分发仍允许。

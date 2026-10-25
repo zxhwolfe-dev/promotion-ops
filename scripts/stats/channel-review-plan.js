@@ -83,4 +83,4 @@ if (require.main === module) {
   try { process.stdout.write(`${JSON.stringify(main(), null, 2)}\n`); }
   catch (error) { process.stderr.write(`channel-review-plan: ${error.message}\n`); process.exitCode = 1; }
 }
-module.exports = { reviewPlan, main };
+module.exports = Object.assign(main, { reviewPlan, main });
