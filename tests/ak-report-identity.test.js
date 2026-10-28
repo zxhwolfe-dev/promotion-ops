@@ -53,6 +53,54 @@ test('no source text means an unknown content hash, never an invented fingerprin
   assert.equal(reportContentHash({ cardText: '' }), null);
   assert.equal(reportContentHash({ cardText: 'too short' }), null);
 });
+
+function weekend(input) {
+  input.nonTradingDayReuse = { mode: 'latest_trading_day', latestTradingDate: '2026-10-23' };
+  input.caption = '2026-10-25非交易日，沿用最近交易日2026-10-23原报告，日期以各图标注为准。';
+  input.previousUses = input.reports.map(report => ({ channel: input.channel, outcome: 'published',
+    publishedAt: '2026-10-23T18:00:00+08:00', reportMetadata: report,
+    sha256: report.sha256, reportContentSha256: reportContentHash(report) }));
+  return input;
+}
+test('non-trading daily update permits the same last-trading-day images from prior publication days', () => fixture(input => {
+  weekend(input);
+  assert.equal(checkAKPackage(input).errors.length, 0);
+  input.previousUses.forEach(use => { use.publishedAt = '2026-10-24T18:00:00+08:00'; });
+  assert.equal(checkAKPackage(input).errors.length, 0);
+}));
+test('weekend reuse still blocks today, unknown outcomes and unverifiable old publication dates', () => fixture(input => {
+  for (const patch of [{ publishedAt: '2026-10-25T17:40:00+08:00' },
+    { outcome: 'unknown' }, { outcome: 'reserved' }, { publishedAt: null }]) {
+    weekend(input); Object.assign(input.previousUses[0], patch);
+    assert.equal(checkAKPackage(input).status, 'blocked');
+  }
+}));
+test('weekend exception requires non-trading context, an actual latest report and visible date disclosure', () => fixture(input => {
+  weekend(input); input.tradingDay = true;
+  assert.ok(checkAKPackage(input).errors.some(e => e.code === 'NON_TRADING_DAY_REUSE_CONTEXT_INVALID'));
+  input.tradingDay = false; input.caption = '2026-10-23历史报告';
+  assert.equal(checkAKPackage(input).status, 'blocked');
+  weekend(input); input.nonTradingDayReuse.latestTradingDate = '2026-10-22';
+  input.caption += ' 2026-10-22';
+  assert.ok(checkAKPackage(input).errors.some(e => e.code === 'NON_TRADING_REUSE_NOT_LATEST_REPORT'));
+}));
+test('today existing AK report prevents a second daily post even when the new images are different', () => fixture(input => {
+  weekend(input); input.previousUses = [{ channel: input.channel, outcome: 'reserved',
+    publicationDate: '2026-10-25', reportMetadata: { id: 'battle', reportDate: '2026-10-22' } }];
+  assert.ok(checkAKPackage(input).errors.some(e => e.code === 'AK_ALREADY_RESERVED_OR_USED_ON_CHANNEL_TODAY'));
+}));
+test('weekend reservation keeps the publication day separate from the report day and stops a second submit', () => fixture(async (input, dir) => {
+  weekend(input); const file = path.join(dir, 'registry-weekend.json');
+  const prior = process.env.PROMO_STATE_DIR; process.env.PROMO_STATE_DIR = path.join(dir, 'weekend-state');
+  fs.writeFileSync(file, JSON.stringify(input.previousUses));
+  try {
+    const result = await reserveAKPackage(input, file); assert.equal(result.status, 'reserved_for_single_authorized_native_submit');
+    const rows = JSON.parse(fs.readFileSync(file)); assert.equal(rows.at(-1).publicationDate, '2026-10-25');
+    assert.equal(rows.at(-1).reportMetadata.reportDate, '2026-10-23');
+    assert.equal((await reserveAKPackage(input, file)).status, 'blocked');
+    assert.equal(JSON.parse(fs.readFileSync(file)).length, 6);
+  } finally { if (prior === undefined) delete process.env.PROMO_STATE_DIR; else process.env.PROMO_STATE_DIR = prior; }
+}));
 test('reservation persists logical identities and refuses an unchanged second attempt', () => fixture(async (input, dir) => {
   const file = path.join(dir, 'registry.json'), previousState = process.env.PROMO_STATE_DIR;
   process.env.PROMO_STATE_DIR = path.join(dir, 'state');

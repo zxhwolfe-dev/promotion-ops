@@ -29,3 +29,9 @@
 图库原图来源、SHA、完整提示词和实测身份必须一致。YouTube原生单图流程：`node scripts/youtube/publish-image-prompt.js prepare|submit|verify /absolute/draft.json`；prepare保留已有非空草稿，submit持久预留后单次原生点击，verify仅原帖回查。图片附件懒加载必须等待实际可见的image renderer及解码；隐藏占位img不当附件。unknown先verify后local reconcile并更新原预留，禁止重跑submit。社区图文不抵扣每日Shorts。
 
 大AK正式提交前改用持久预留CLI：`node scripts/campaign/reserve-ak-package.js /absolute/package.json /home/zxhwolfe/creative_work/promotion-media-registry.json`；它读取权威登记，不接受调用方空历史覆盖，同一登记锁下核验并先写三图reserved，本身不联网/不发布。旧check CLI仍可只读预检，但不能替代预留。原有writeOnce负责单次原生提交及独立原帖证明，再将对应operationId预留解为published/明确失败；unknown持续占用。除PNG SHA外，同渠道同报告日期/版次或规范正文重复均阻止；新下载/改编码不是新内容。45条旧登记已由15张实际来源补身份，9条无法核实仍unknown，不用文件名补日期。不同渠道合理同日分发仍允许。
+
+## 非交易日日更与跨日去重
+
+报告日期与发布日期分别记录。休市日沿用最近交易日原图，需要显式设置 `tradingDay:false` 和 `nonTradingDayReuse:{mode:"latest_trading_day",latestTradingDate:"YYYY-MM-DD"}`，正文注明非交易日和真实报告日期；作战卡与涨停复盘必须来自所声明的最近交易日。
+
+该模式只允许复用已确认在更早发布日期公开的同卡。同平台同发布日期已经预留或使用的报告仍阻止再次发布，结果或发布日期未知的历史操作仍阻止复用。新预留保存 `publicationDate`；下载日期、文件改名或重新编码不能充当新报告。普通交易日与没有显式启用该模式的流程保持原有校验。
