@@ -4,7 +4,6 @@ const { assertPromotionLinks } = require('../../lib/campaign');
 const { withPage, withReadPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, until, normalize, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
-const { plainMarkdown } = require('../../lib/articles');
 const { redditThread, redditComments, findRedditComment } = require('../../lib/comments');
 async function main(args = process.argv.slice(2)) {
   const thread = redditThread(args[0]);
@@ -30,7 +29,7 @@ async function main(args = process.argv.slice(2)) {
     return withReadPage(page.context(), async readPage => {
       const match = await until(async () => {
         await navigate(readPage, profile, ['old.reddit.com']);
-        return findRedditComment(await redditComments(readPage), { previousIds, author, text: plainMarkdown(text), threadId: thread.id });
+        return findRedditComment(await redditComments(readPage), { previousIds, author, text, threadId: thread.id });
       }, { timeout: 30000, interval: 2000, label: '个人主页未出现本账号对目标帖子的新评论；禁止按固定间隔盲目重发' });
       return { status: 'verified', commentUrl: match.url, evidence: { kind: 'independent_profile_readback', commentId: match.id, authorMatched: true, threadMatched: true, bodyMatched: true, visibility: 'account_only_not_public_guarantee' } };
     });

@@ -1,5 +1,6 @@
 'use strict';
 const { assertPromotionLinks } = require('../../lib/campaign');
+const { assertTencentMarkdown } = require('../../lib/tencent-markdown');
 // node scripts/tencent-cloud/publish-article.js <title> <bodyMdFile>
 const { withPage } = require('../../lib/cdp');
 const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until, OpsError } = require('../../lib/ops');
@@ -10,6 +11,7 @@ async function main(args = process.argv.slice(2)) {
   articleBodySelectors('tencent');
   const title = validateTitle(args[0]);
   const body = await readText(args[1]);
+  assertTencentMarkdown(body);
   assertPromotionLinks(body, 'tencent', process.env.PROMO_CONTENT_LANGUAGE || 'zh');
   fingerprints(plainMarkdown(body)); // 可核验性必须在任何提交之前检查。
   const account = requiredEnv('TENCENT_UID', /^\d+$/);

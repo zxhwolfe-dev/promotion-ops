@@ -140,6 +140,9 @@ function mockPage({ switchDuringRead = false, backToA = false, brokenMetric = fa
   const page = new EventEmitter(); let current = urlA, switched = false, reads = 0;
   const frame = { url: () => current }; page.mainFrame = () => frame; page.url = () => current;
   page.goto = async url => { current = url; return { status: () => 200 }; };
+  // Supply the ordinary-page DOM snapshot used by security-interstitial checks.
+  // Metric evaluateAll below still controls the tested navigation race.
+  page.evaluate = async () => ({ text: 'Article body', title: 'Article', pathname: new URL(current).pathname });
   page.locator = selector => ({ filter() { return this; },
     count: async () => selector.startsWith('#aliyun') ? 0 : 1,
     evaluateAll: async fn => {

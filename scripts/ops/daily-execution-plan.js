@@ -60,6 +60,19 @@ function main(args = process.argv.slice(2), { defaultPolicyFile = path.resolve(_
     result.videoQueue = videoReleasePlan(JSON.parse(fs.readFileSync(videoQueue.file, 'utf8')), asOf);
     result = guardDailyVideoTasks(result, result.videoQueue);
   }
+  // Channel maintenance remains active even when no video queue is configured.
+  const maintenancePolicy = policyFile || (videoQueueFile ? null : defaultPolicyFile);
+  if (maintenancePolicy && fs.existsSync(maintenancePolicy)) {
+    const info = fs.statSync(maintenancePolicy);
+    if (!info.isFile() || info.size > 4 * 1024 * 1024) throw Error('Policy must be a regular file below 4 MiB');
+    const policy = JSON.parse(fs.readFileSync(maintenancePolicy, 'utf8'));
+    if (!policy || typeof policy !== 'object' || Array.isArray(policy)) throw Error('Policy must be an object');
+    if (policy.channelRegistry !== undefined) {
+      if (typeof policy.channelRegistry !== 'string' || !policy.channelRegistry.trim()) throw Error('channelRegistry must name a local registry');
+      const registryFile = path.resolve(path.dirname(maintenancePolicy), policy.channelRegistry);
+      result.channelMaintenance = require('../../lib/channel-maintenance').loadChannelMaintenance({ registryFile, observations, asOf });
+    }
+  }
   return { result, exitCode: strict && !result.complete ? 2 : 0 };
 }
 if (require.main === module) {

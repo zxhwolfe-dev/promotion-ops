@@ -21,5 +21,13 @@ test('passive reCAPTCHA badge does not block; interactive challenges still stop'
       ['other-platform verification', '<div id="aliyunCaptcha-mask">Complete verification</div>'],
     ]) await t.test(name, async () => { await page.setContent(html); await assert.rejects(assertNoChallenge(page), { code: 'HUMAN_REQUIRED' }); });
     await t.test('hidden challenge is ignored', async () => { await page.setContent('<iframe src="https://captcha.example.test" style="display:none"></iframe>'); await assertNoChallenge(page); });
+    await t.test('localized Cloudflare interstitial stops and preserves handoff', async () => {
+      await page.setContent('<h1>www.producthunt.com</h1><h2>正在进行安全验证</h2><p>本网站使用安全服务防护恶意自动程序。</p><footer>Ray ID: example 由 Cloudflare 提供的性能和安全服务</footer>');
+      await assert.rejects(assertNoChallenge(page), error => error.code === 'HUMAN_REQUIRED' && error.preservePage === true);
+    });
+    await t.test('a normal article mentioning Cloudflare is not a challenge', async () => {
+      await page.setContent('<h1>排查安全验证</h1><p>Cloudflare 曾显示“正在进行安全验证”，本篇记录排查方法。</p>');
+      await assertNoChallenge(page);
+    });
   } finally { await browser.close(); }
 });
