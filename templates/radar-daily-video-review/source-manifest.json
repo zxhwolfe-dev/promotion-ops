@@ -1,0 +1,32 @@
+{
+  "sourceDate": "2026-11-11",
+  "revision": 2,
+  "scope": "local video source snapshot only; no platform publishing or unattended scheduler",
+  "scripts": [
+    {
+      "file": "scripts/caption_strip.py",
+      "sha256": "c67cd77d097f19f0f82b333c17068465d9acae1c0c425d08f20e4a94b1f702db",
+      "sourceMatchesValidatedRevision": true
+    },
+    {
+      "file": "scripts/prepare_v2.py",
+      "sha256": "89623207f8376412fa3724ef83d7cbd6111cd98f28ba437d0d06e397579edf81",
+      "sourceMatchesValidatedRevision": true
+    },
+    {
+      "file": "scripts/produce.py",
+      "sha256": "b00c36ca9bc1571e6884a2ac7215a49f438db577559b6ca69ca04b02d31c4ecb",
+      "sourceMatchesValidatedRevision": true
+    },
+    {
+      "file": "scripts/verify-caption-pixels.py",
+      "sha256": "0905b771c49d9e1d68538cd42f33e8b14f79a880208abe51a9a7891446ee33aa",
+      "sourceMatchesValidatedRevision": true
+    },
+    {
+      "file": "scripts/verify-videos.py",
+      "sha256": "df8464b68ac8abe06525f4054a70d83f0a71e759ca4c5a57cdd51987ad0564e7",
+      "sourceMatchesValidatedRevision": true
+    }
+  ]
+}
