@@ -12,3 +12,6 @@
 - 旧工作流完整保存在 `/home/zxhwolfe/creative_work/2026-11-13-promotion-automation-upgrade/before/ops/docs/current-workflow.md`。
 
 最新工程交接：`/home/zxhwolfe/creative_work/2026-11-13-promotion-automation-followup/STATUS.md`。原版第16期源码快照仍在 `templates/radar-daily-video-review/`，不再作为每日运行入口。
+
+2026-11-13晚间核验：本机timer只覆盖雷达制作与已验白名单抖音/B站/TikTok的发布/回查，不代表全站当天任务自动完成；现阶段不调用模型CLI或写作LLM，语音通过微软免费在线Neural TTS。主会话选图、审稿、效果复盘与其他渠道仍需运营会话。只运行自动代码不等于自动完成编辑判断。
+未启用渠道记skipped；已启用适配验证丢失才记运行失败。上传成功、后台公开、匿名公开分别记录，未知不补零、不重传。最新当日运营事实以主仓库入口所指策略的三份同日回执/指标/交接为准。
