@@ -19,3 +19,29 @@ test('Markdown insertion preserves section boundaries and rejects editors that d
     await assert.rejects(() => insertEditorText(page, page.locator('pre'), text), { code: 'FILL_MISMATCH' });
   } finally { await browser.close(); }
 });
+
+test('Markdown auto-indent does not change Python indentation when explicitly cleared', { skip: !process.env.PROMO_TEST_BROWSER }, async () => {
+  const browser = await chromium.launch({ executablePath: process.env.PROMO_TEST_BROWSER, headless: true, args: ['--no-sandbox', '--disable-background-networking'] });
+  const page = await browser.newPage();
+  const fixture = async prefix => {
+    await page.setContent('<textarea></textarea>');
+    await page.locator('textarea').evaluate((el, forcedPrefix) => el.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const previous = el.value.slice(0, el.selectionStart).split('\n').pop();
+      const indent = forcedPrefix ?? previous.match(/^[\t ]*/)[0];
+      el.setRangeText('\n' + indent, el.selectionStart, el.selectionEnd, 'end');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }), prefix);
+  };
+  try {
+    const text = 'def sample():\n    if True:\n        return 0\n    return 1';
+    await fixture(null);
+    await assert.rejects(() => insertEditorText(page, page.locator('textarea'), text), { code: 'FILL_MISMATCH' });
+    await fixture(null);
+    await insertEditorText(page, page.locator('textarea'), text, { clearNativeIndent: true });
+    assert.equal(await page.locator('textarea').inputValue(), text);
+    await fixture('- ');
+    await assert.rejects(() => insertEditorText(page, page.locator('textarea'), text, { clearNativeIndent: true }), { code: 'UNEXPECTED_EDITOR_PREFIX' });
+  } finally { await browser.close(); }
+});

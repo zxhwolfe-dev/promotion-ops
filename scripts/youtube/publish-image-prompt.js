@@ -6,11 +6,18 @@ const { writeOnce, writeJSON, withLock } = require('../../lib/state');
 const { insertEditorText } = require('../../lib/editor-text');
 const { inspectMedia } = require('../../lib/campaign-media');
 const { loadImagePromptPost } = require('../../lib/image-prompt-post');
+const { decodedAttachmentMatches } = require('../../lib/decoded-attachment');
+const { assertEditorialReady } = require('../../lib/image-prompt-editorial');
 const BASE = '/home/zxhwolfe/creative_work';
 const OWNER = 'https://www.youtube.com/channel/UCPOdZVHyFUCS1_P1GggqMtA/posts';
 const REGISTRY = BASE + '/promotion-media-registry.json';
 const norm = value => value.replace(/\s+/g, ' ').trim();
 const evidence = (draft, name) => path.join(draft.evidenceDirectory, name + '.json');
+function mediaReservation(asset, draft, operationId) {
+  return { ...asset, channel: 'youtube', operationId, outcome: 'reserved',
+    at: new Date().toISOString(), sourceGalleryId: asset.sourceGalleryId || draft.sourceGalleryId || null,
+    origin: draft.origin, evidence: evidence(draft, 'prepared') };
+}
 
 async function ownerPage(context) {
   const matches = context.pages().filter(p => p.url() === OWNER);
@@ -76,9 +83,7 @@ async function submit(context, draft) {
       const checked = await inspectMedia(draft.assets, { channel: 'youtube', records: rows,
         titles: rows.map(x => x?.title).filter(Boolean) });
       if (checked.issues.length) throw new Error('Media became used or unknown after preparation');
-      await writeJSON(REGISTRY, [...rows, ...draft.assets.map(a => ({ ...a, channel: 'youtube', operationId,
-        outcome: 'reserved', at: new Date().toISOString(), sourceGalleryId: draft.sourceGalleryId || null,
-        origin: draft.origin, evidence: evidence(draft, 'prepared') }))]);
+      await writeJSON(REGISTRY, [...rows, ...draft.assets.map(a => mediaReservation(a, draft, operationId))]);
     });
     await writeJSON(evidence(draft, 'submit'), { at: new Date().toISOString(), status: 'reserved_single_native_submit', id: draft.id });
     await click(() => page.getByRole('button', { name: '发布', exact: true }).filter({ visible: true }).click());
@@ -120,12 +125,14 @@ async function verify(context, draft, url) {
   const image = attachment.locator('img:visible');
   await image.waitFor({ timeout: 20000 });
   const deadline = Date.now() + 20000;
-  while (!await image.evaluate(e => e.complete && e.naturalWidth >= 600 && e.naturalHeight > 0)) {
+  while (!decodedAttachmentMatches(await image.evaluate(e => ({ complete: e.complete,
+    width: e.naturalWidth, height: e.naturalHeight })), draft.assets[0])) {
     if (Date.now() >= deadline) throw new Error('Native image still loading; reconcile without resubmitting');
     await page.waitForTimeout(300);
   }
-  const images = await attachment.locator('img:visible').evaluateAll(es => es.filter(e => e.complete && e.naturalWidth >= 600)
-    .map(e => ({ url: e.currentSrc, width: e.naturalWidth, height: e.naturalHeight })));
+  const decoded = await attachment.locator('img:visible').evaluateAll(es => es
+    .map(e => ({ url: e.currentSrc, width: e.naturalWidth, height: e.naturalHeight, complete: e.complete })));
+  const images = decoded.filter(image => decodedAttachmentMatches(image, draft.assets[0]));
   if (images.length !== draft.assets.length) throw new Error('Original images differ');
   if (Math.abs(images[0].width / images[0].height - draft.assets[0].width / draft.assets[0].height) > 0.02) throw new Error('Published image aspect differs');
   const record = { at: new Date().toISOString(), status: 'published_native_owner_and_permalink_verified', url,
@@ -139,6 +146,7 @@ async function verify(context, draft, url) {
 async function main(args = process.argv.slice(2)) {
   if (args.length !== 2 || !['prepare', 'submit', 'verify'].includes(args[0])) throw new Error('Usage: publish-image-prompt.js <prepare|submit|verify> <local-draft.json>');
   const draft = loadImagePromptPost(args[1]);
+  assertEditorialReady(draft, args[0]);
   if (draft.assets.length !== 1) throw new Error('This native YouTube path is validated for one image; multi-image publication is not enabled');
   return withBrowser(context => args[0] === 'prepare' ? prepare(context, draft) : args[0] === 'submit' ? submit(context, draft)
     : verify(context, draft, JSON.parse(fs.readFileSync(evidence(draft, 'native-sent'))).url));
@@ -147,3 +155,4 @@ if (require.main === module) main().then(result => console.log(JSON.stringify(re
 module.exports = main;
 module.exports.main = main;
 module.exports.verify = verify;
+module.exports.mediaReservation = mediaReservation;

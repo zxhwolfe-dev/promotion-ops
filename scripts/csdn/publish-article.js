@@ -2,7 +2,7 @@
 const { assertPromotionLinks } = require('../../lib/campaign');
 // node scripts/csdn/publish-article.js <title> <bodyMdFile> [abstract]
 const { withPage } = require('../../lib/cdp');
-const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until } = require('../../lib/ops');
+const { run, requiredEnv, readText, navigate, choose, button, fillEmpty, until, OpsError } = require('../../lib/ops');
 const { writeOnce } = require('../../lib/state');
 const { validateTitle, fingerprints, plainMarkdown, insertEmpty, selectTag, verifyArticle, articleBodySelectors } = require('../../lib/articles');
 async function main(args = process.argv.slice(2)) {
@@ -25,10 +25,16 @@ async function main(args = process.argv.slice(2)) {
       return read1 === read2;
     }, { timeout: 20000, code: 'EDITOR_UNSTABLE', exitCode: 1, label: 'CSDN 编辑器草稿恢复未稳定' });
     const editor = await choose(page, [page.locator('pre.editor__inner[contenteditable]')], 'Markdown 正文');
-    await insertEmpty(page, editor, body);
+    if ((await editor.textContent()).trim()) throw new OpsError('EXISTING_DRAFT', '编辑器已有内容，保留正文与标题', 3);
     await (await choose(page, [page.locator('.article-bar__title-display')], '标题激活区')).click();
     const titleBox = await choose(page, [page.getByPlaceholder(/标题/), page.locator('.article-bar__title input')], '标题输入框');
-    await fillEmpty(titleBox, title);
+    if ((await titleBox.inputValue()).trim() === '【无标题】') {
+      await titleBox.fill(title);
+      if (await titleBox.inputValue() !== title) throw new OpsError('TITLE_MISMATCH', 'CSDN 标题回读不一致');
+    } else await fillEmpty(titleBox, title);
+    // Body autosave can replace a blank title with the platform's 【无标题】.
+    // Set the checked title before insertion; meaningful saved drafts are rejected.
+    await insertEmpty(page, editor, body, { clearNativeIndent: true });
     const openPublish = await button(page, '发布文章');
     await submit(() => openPublish.click()); // 从第一个发布按钮起，整个单次提交流程都进入保护区间。
     if (abstract) {

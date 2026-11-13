@@ -1,0 +1,5 @@
+# Independent local creation runtime; no business model or paid TTS dependencies.
+edge-tts==7.3.1
+Pillow==12.3.0
+numpy==2.2.6
+opencv-python==4.13.0.92

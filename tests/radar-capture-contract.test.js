@@ -1,0 +1,5 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');const {sourceSentence}=require('../scripts/radar/capture-daily');
+test('automatic narration uses a whole published source sentence; it never truncates a long sentence',()=>{assert.equal(sourceSentence('This tool organizes your local notes. A second point.','en'),'This tool organizes your local notes.');assert.equal(sourceSentence('A'.repeat(400)+'.','en'),null);assert.equal(sourceSentence('该项目将会议录音转为便于检索的文字。第二个完整句子。','zh'),'该项目将会议录音转为便于检索的文字。');assert.equal(sourceSentence('没有完整句号的材料','zh'),null);});
+
+test('.NET and decimals inside the source do not discard the beginning of a sentence',()=>{const s='Rea connects an AI agent to native binaries, JavaScript and .NET assemblies, returning evidence. Next sentence.';assert.equal(sourceSentence(s,'en'),'Rea connects an AI agent to native binaries, JavaScript and .NET assemblies, returning evidence.');assert.equal(sourceSentence('Tool version 1.2 processes complete native files. Next point.','en'),'Tool version 1.2 processes complete native files.');});

@@ -23,3 +23,10 @@ test('an AK package or X video cannot satisfy Radar images; missing images/evide
     assert.notEqual(plan({publiclyPublished:[{...imagePost,...extra}]}).current.find(t=>t.channel==='x').status,'complete');
   }
 });
+test('canonical Radar catalog identity completes the same verified image task',()=>{
+  const canonical={...imagePost,featureIds:['opensource-web']};
+  assert.equal(plan({publiclyPublished:[canonical]}).current.find(t=>t.channel==='x').status,'complete');
+  for(const extra of [{featureIds:['opensource-skill']},{assets:[{id:'one'}]},{evidenceFilePresent:false}]){
+    assert.notEqual(plan({publiclyPublished:[{...canonical,...extra}]}).current.find(t=>t.channel==='x').status,'complete');
+  }
+});

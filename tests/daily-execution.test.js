@@ -13,6 +13,24 @@ const row = (channel, extra = {}) => ({ channel, status: 'published_native_perma
   verifiedAt: '2026-10-22T18:02:00+08:00', evidence: '/evidence.json', evidenceFilePresent: true, ...extra });
 const plan = (rows, extra = {}) => executionPlan({ asOf: '2026-10-22T19:00:00+08:00',
   receipts: [{ date: '2026-10-22', publiclyPublished: rows }], ...extra });
+test('unsubmitted quality block never suggests reconciling a nonexistent publication', () => {
+  const block = { channel: 'weibo', kind: 'three_native_images', status: 'blocked_quality',
+    submitted: false, evidence: '/quality.json', evidenceFilePresent: true, reason: 'Mislabeled native card' };
+  const run = pending => executionPlan({ asOf: '2026-10-22T19:00:00+08:00',
+    receipts: [{ date: '2026-10-22', pending }] }).current.find(x => x.channel === 'weibo');
+  const task = run([block]);
+  assert.equal(task.status, 'blocked_quality');
+  assert.equal(task.nextAction, 'resolve_quality_issue_before_any_submit');
+  assert.equal(task.unresolvedResults.length, 0);
+  assert.equal(task.qualityBlocks[0].reason, block.reason);
+  // A real unknown submission must still take precedence over a later quality note.
+  assert.equal(run([block, row('weibo', { status: 'unknown_after_submit' })]).nextAction,
+    'verify_existing_result_do_not_resubmit');
+  // Incomplete evidence or an absent explicit non-submission assertion remains unknown.
+  for (const extra of [{ submitted: undefined }, { evidenceFilePresent: false }]) {
+    assert.equal(run([{ ...block, ...extra }]).status, 'needs_result_reconciliation');
+  }
+});
 test('all six verified receipts complete the day; no unknown-to-zero metrics', () => {
   const result = plan(['tiktok', 'youtube', 'weibo', 'toutiao', 'xueqiu', 'taoguba'].map(channel => row(channel)));
   assert.equal(result.complete, true); assert.equal(result.completedTasks, 6);

@@ -37,7 +37,9 @@ function main(args = process.argv.slice(2), { defaultPolicyFile = path.resolve(_
     }
     return data;
   });
-  let result = executionPlan({ asOf, receipts });
+  const activePolicyFile = policyFile || (videoQueueFile ? null : defaultPolicyFile);
+  const configuredPolicy = activePolicyFile && fs.existsSync(activePolicyFile) ? JSON.parse(fs.readFileSync(activePolicyFile,'utf8')) : {};
+  let result = executionPlan({ asOf, receipts, contract:configuredPolicy.activeContract, automation:{buildTimerInstalled:configuredPolicy.automationEngineering?.builderTimerInstalled===true} });
   const observations = snapshotFiles.flatMap(file => {
     const info = fs.statSync(file);
     if (!info.isFile() || info.size > 16 * 1024 * 1024) throw new Error('Snapshot must be a regular file below 16 MiB');

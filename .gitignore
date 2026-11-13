@@ -21,3 +21,5 @@ promotion-metrics.md
 *.pem
 *.key
 .DS_Store
+__pycache__/
+*.py[cod]

@@ -1,4 +1,44 @@
+> 2026-10-22：当前执行转到 [current-workflow.md](current-workflow.md)。下文保留旧历史与技术参考，过期当前状态、排期和四模型授权不可执行。
+
+
+
+## 2026-10-19 当前交接（优先）
+
+本轮已核公开5条：工作站会议纪要教程TikTok/YouTube、当日大AK原生三图微博/头条、爱图英文语录模板YouTube社区；TikTok/头条初始审核均已解除，未重投。当前交接：/home/zxhwolfe/.claude/auth-glm/projects/-home-zxhwolfe-project-akaiagents/memory/promotion-handoff-20261019.md；实际回执：/home/zxhwolfe/creative_work/2026-10-19-promotion-followup/publication-results.json。59组登记、13组新计数/32观察，另38公开检查；未知不补零，平台数据不当真人/转化。Gmail两扫3线程含垃圾/回收站，无确认试读收件人、无发信。SaaSHub人工验证须实时复核。无提交推送部署、无业务代码修改、四模型禁用、三手动媒体/暂停平台及宣传页/访客统计排除保持；无人值守调度未安装。
+
+
+## 2026-10-18 提交部署与三图发布已完成（2026-10-18T16:28:42+08:00）
+
+大AK日期修复842dd5c7f、图片选测修复5523fe7f4已推送并经默认过滤production部署验证，排除其他本地功能；首轮无关高考旧测试导致CI失败，已修复选测路由后通过，不跳门禁。线上原生三图重下载验图（10/16收盘、10/18早报、10/16涨停），微博辉股子公开：https://weibo.com/5787339974/RnfoL043D。本日累计4条已核公开，完整实际回执仍见当日publication-results.json；下面14:43未授权/未部署/三图未发描述为历史，已被此条取代。未知指标/真人转化不补造；24h/72h复查、三手动媒体、暂停渠道、四模型禁用边界不变。
+## 2026-10-18 当前实绩与边界（优先读）
+
+用户已批准最多5名自愿试读及全站运营，昨日未做不回填。当前交接：/home/zxhwolfe/.claude/auth-glm/projects/-home-zxhwolfe-project-akaiagents/memory/promotion-handoff-20261018.md；实际回执：/home/zxhwolfe/creative_work/2026-10-18-promotion-followup/publication-results.json。TikTok/YouTube开源首任务教程及腾讯云试读招募稿共3条已公开核验。CSDN招募审核未通过，旧扫码状态已失效，不重投；暂无确认收件人，未发报告/邮件/私信。大AK原生图日期错，整组未发；本地根修2运行文件+1测试，48通过，未提交部署，须明确授权再上线验图。14组27条计数+另38组公开检查不当全量真人统计；59组缺口保留。宣传页/访客统计修复排除，四模型禁用及三手动媒体/暂停渠道边界继续。浏览器收尾4常用页；结果直接会话汇报。
+
+
+
+## 2026-10-16 旧Grok材料采纳与当前安排（本条优先）
+
+- 已核对r15五件及复核版证据/渠道/漏斗/指标/来源五件，输入散列与旧稿保留；裁决：/home/zxhwolfe/creative_work/2026-10-16-promotion-followup/review/legacy-adoption.md。
+- 保留分层、未知不补零、真实问题维护、完整报告后的自愿流程回复；旧真人估计/规则/七天排期不复用；r15完整材料1358/220与空表1354/219冲突已标记。
+- 实验仅引用现机会：A菜单视频已发待成熟观察；C雷达/Skill首任务占现轮换；B企业人工试读待用户决定。统一登记：/home/zxhwolfe/creative_work/promotion-reporting/experiments.json，不增加日更配额、不重发旧猫视频或未知OS评论。
+- 宣传页功能全部排除，访客统计修复不重新纳入；不新建领取页，不动采集开关。归因缺口只报告。
+- 企业10/13三视频三文章已有，publish_info仍写尚未发布；领取/咨询未获当前完整台账，保持null，不能照抄旧0。人工空白表仅规范，无人触达。全32功能真实入口与指标见/home/zxhwolfe/creative_work/2026-10-16-promotion-followup/review/all-feature-handoff.csv。
+- 本轮仅本地文档，无Chrome/外部访问、平台发布评论邮件、后台生产、模型CLI或提交推送部署；已有今日AK晚间任务不变。用户结果直接会话列出。
+
+> 2026-10-16中午更新：新版TikTok/YouTube均已公开，旧TikTok不再列出，之前App撤回待办已解除。CDP工具返回运行中session时先等其完成，期间只做独立文件/无登录态检查；不能在前一CDP进程仍持锁时启动另一CDP任务。
+
+> 2026-10-16 最新补充：推广旁白使用微软免费在线自然语音；自然语音失败不能换旧Windows SAPI/Zira凑发布。执行规则与已验证上游兼容版本见 `/home/zxhwolfe/creative_work/promotion-narration-policy.json`，当前交接见 `2026-10-16-promotion-followup/STATUS.md`。TikTok商业内容可能仅App可修改/删除，发布前必须先验收音色；出错如实登记，未知不重发。
+
+> 2026-10-15收尾更正：微博当前辉股子账号已发，今晚五渠道完成。收尾前必须重新检查本轮待办、账号身份、登录/验证状态、草稿、审核及真实发布结果；用户处理期间页面状态可能变化，不沿用旧截图或旧弹窗。确认用户已处理后，继续既有授权工作，不能重复要求用户处理。多标签先核当前账号UID，不能只按域名或标签顺序选页。未复核项注明最后核验时间，不当作当前阻塞；未知发布结果先核实再决定下一步，禁止盲目重发。
+
 # 当前双语运营执行入口（2026-10-13）
+
+## 最新入口补充：2026-10-14 16:28
+
+今天先读 `/home/zxhwolfe/creative_work/2026-10-14-promotion-followup/reports/DAILY_REPORT.md` 与 `AK_EXECUTION_AND_CONTENT.md`；下文10/13数据为历史，不能用其中文未收录/UTM仍覆盖描述今天。
+
+产品参数：`campaignURL`/`copyIssues`支持`product: "ak"`；`assertPromotionLinks(text, channel, language, "ak")`明确校验AK。生成例：`node scripts/campaign/link.js en reddit / 20261014_ak_intro fintech_selfpromo community ak`；中英文介绍均用实际akaiagents.com，英文稿如实注明中文界面。其他发布脚本不自动选择AK，本轮专用投递脚本和JSON回执留creative_work。账户内已发布≠公众可见/曝光，HTTP200≠有效接收回执，unknown先核远端不重发；r/fintech本周自荐已用。
+
 
 ## 最新收尾：2026-10-13 16:11（北京时间）
 
@@ -115,3 +155,19 @@ daily-snapshot 必须显式配置 PROMO_TARGETS_FILE，不再悄悄使用示例�
 TikTok 原生照片流程会从 /tiktokstudio/upload 跳到 /tiktokstudio/upload/post/photo，复用前先读实际 URL，未找到目标时不能在新建空白标签上继续。JPG/JPEG/PNG/WebP 均由原生照片 input 接受，本次用原始 WebP、英文文件名，保留内容哈希。三图在编辑器填写英文标题/描述，展开“显示更多”，启用 AI 生成和自己的品牌披露；品牌 input 覆盖在图标下，应点击可见 label 后回读 checked，不使用 force。只提交一次；工作台标题可能仅显示描述，独立结果应绑定新 ID、作者、正文和三张实际图片，而非只匹配标题。结果 URL 的 /video/<id> 会跳为 /photo/<id>，登记时用无查询 canonical。
 
 发布按钮后的“仅自己/内容审查中”是处理中观察，不能立刻断言用户设置错误或重复发布。待原生作品行显示“所有人”并消除审查提示后更新快照。已点击且回读不足先记 unknown，占用媒体；独立回读后按可信结果 URL reconcile，保留原状态与审计记录。图库候选必须排除英文帖子中的内嵌中文。SHA/标题之外的近似图检查只能作为补充，不承诺识别所有裁切变体。
+
+
+## 2026-10-16 用户新增日常要求
+
+- 浏览器结束前清理重复与已完成的临时标签；常用只留 Gmail、TikTok Studio、YouTube Studio、中文爱图工坊；另留必要工作页。未保存输入、登录/验证、提交结果未知页面不能盲关。固定标签须原生界面实际操作验证。
+- 每次每日运营先整理推广数据，按“目标—实际—判断—证据—调整—复查窗口”直接会话汇报；判断为达标/未达标/样本不足/无法测量。按产品、语言、平台和相同发布后窗口比较；平台阅读不是到站，下载不是成功安装，缺数据不是零。
+- 内部视频试验目标与样本限制见 promotion-reporting/policy.json；未到观察窗口不能凭新作品零播放判失败；随数据调整选题、开头、长度、封面、引导入口，一轮突出一个主要变量。
+- 当前没有无人值守调度或主动聊天推送；不承诺无会话自动执行。大AK本日仍留晚上处理。结果不以文档链接交付。
+
+
+### 2026-10-19 原生发布实测补充
+- 先读实际aria-label：YouTube高级设置=显示高级设置，AI选择=是，使用了 AI，社区图片入口=添加图片；Aitu三个模块aria为Photo studio/Creator templates/Business templates，不能把可见副标题当无障碍名称。
+- TikTok上传完成后会异步补默认文件名；等页面稳定，再原生全选替换，逐字回读纯文案。
+- YouTube上传页与公开范围页显示字段不同；公开范围页不再展示文件名，需将原生上传文件证据和当前视频ID/标题/检查结果绑定，不能误判后重复上传。
+- 图片预览会克隆同一张图；按唯一图片来源+本地SHA核验，不按img标签数虚报多图。只记录尺寸、MIME、摘要；data:图片数据和签名查询不输出到文本证据。
+- 提交、审核中、仅自己、公开、匿名验证分层记录；收尾复查旧审核和用户验证状态。未知结果先核原帖，禁止重投。
