@@ -11,7 +11,7 @@ function sourceSentence(text,lang){
 }
 async function captureDaily({date,episode,output,historyFile,executable,ranking='daily'}){
  if(!executable||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isInteger(episode)||episode<1)throw Error('Explicit date, positive episode and isolated browser executable required');
- const history=JSON.parse(await fs.readFile(historyFile,'utf8'));const seen=new Set(history.flatMap(x=>x.projectIds||[]));
+ const history=JSON.parse(await fs.readFile(historyFile,'utf8'));const cutoff=Date.parse(date+'T00:00:00+08:00')-30*86400000,end=Date.parse(date+'T00:00:00+08:00');const seen=new Set(history.filter(x=>{const t=Date.parse(x.publicationDate+'T00:00:00+08:00');return Number.isFinite(t)&&t>=cutoff&&t<=end;}).flatMap(x=>x.projectIds||[]));
  await fs.mkdir(output,{recursive:true});if(await fs.stat(path.join(output,'episode-input.json')).then(()=>true,()=>false))throw Error('Existing episode input preserved; inspect and reuse it');
  const b=await chromium.launch({executablePath:executable,headless:true,args:['--no-sandbox']});const records={},snapshots={};
  try{const p=await b.newPage({viewport:{width:1280,height:2000},deviceScaleFactor:2});

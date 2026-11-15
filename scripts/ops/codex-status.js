@@ -1,0 +1,4 @@
+'use strict';
+const fs=require('node:fs/promises'),path=require('node:path');
+async function main(file){const c=JSON.parse(await fs.readFile(file,'utf8'));const read=async name=>{try{return JSON.parse(await fs.readFile(path.join(c.stateRoot,name),'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}};const latest=await read('latest.json'),active=await read('active.json'),schedule=await read('schedule.json');const assessment=await require('../../lib/codex-ops-assessment').assessRun(c,latest);return{assessment,model:c.model,threadId:c.threadId,liveEnabled:c.liveEnabled===true,schedule,activeRun:active,lastRun:latest,lastRunMeaning:latest?.probe?'只读接线验收，不代表正式运营已执行':'正式运营执行记录；状态与未完成项仍须逐条核对'};}
+if(require.main===module)main(process.argv[2]).then(x=>console.log(JSON.stringify(x,null,2))).catch(e=>{console.error(e.message);process.exitCode=1;});module.exports={main};

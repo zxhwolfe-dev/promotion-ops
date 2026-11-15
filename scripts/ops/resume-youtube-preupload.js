@@ -1,0 +1,4 @@
+'use strict';
+const fs=require('node:fs'),{withBrowser}=require('../../lib/cdp');
+async function main(args=process.argv.slice(2)){const o={};for(let i=0;i<args.length;i++){const k={'--job':'jobFile','--state-root':'stateRoot','--registry':'registryFile'}[args[i]];if(k)o[k]=args[++i];else if(args[i]==='--user-verified')o.userVerified=true;else throw Error('Unknown argument');}if(!o.jobFile||!o.stateRoot||!o.registryFile)throw Error('Explicit job, state root and registry required');return require('../../lib/publishers/youtube-preupload-recovery').recoverYouTubePreupload({...o,job:JSON.parse(fs.readFileSync(o.jobFile,'utf8')),browser:withBrowser});}
+if(require.main===module)main().then(r=>console.log(JSON.stringify(r,null,2))).catch(e=>{console.error(e.message.split('\n')[0]);process.exitCode=1;});module.exports={main};
