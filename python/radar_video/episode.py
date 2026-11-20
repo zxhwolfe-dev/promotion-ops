@@ -22,6 +22,9 @@ def validate(data):
             if captured.astimezone(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()!=data['sourceDate']:raise ValueError('Source date disagrees with capture')
             if src['sha256']!=hashlib.sha256(file.read_bytes()).hexdigest():raise ValueError('Native screenshot changed')
             if lang=='en' and re.search(r'[\u4e00-\u9fff]',c['headline']+c['narration']):raise ValueError('English version contains Chinese')
+            if c.get('captionCues'):
+                from .caption_contract import explicit_cues
+                explicit_cues(c['narration'],c['captionCues'],lang=='zh')
     return data
 
 def prepare(data,root):
@@ -34,9 +37,16 @@ def prepare(data,root):
         for i,p in enumerate(data['projects']):
             c=p[lang];name=f'card-{i+1:02d}.png';native=frame(c,data['sourceDate'],lang,out/'frames'/name)
             cards.append(dict(id=p['id'],kind='point',project_id=p['id'],rank=c['source']['rank'],filename=name,headline=c['headline'],narration=c['narration'],nativeCard=native))
+            if c.get('captionCues'):cards[-1]['captionCues']=c['captionCues']
         name=f'card-{len(cards)+1:02d}.png';outro(data['sourceDate'],lang,out/'frames'/name)
         cards.append(dict(id='radar-entry',kind='summary',filename=name,narration='本期是资料选型介绍，使用前核对运行条件和原仓库许可。完整项目卡和来源，在AI开源项目雷达。' if lang=='zh' else 'Source-based profiles, not hands-on tests. Check setup and upstream licenses. Explore the full cards and sources in AI Open Source Radar.'))
+        if data.get('outroNarration',{}).get(lang):cards[-1]['narration']=data['outroNarration'][lang]
+        if data.get('outroCaptionCues',{}).get(lang):cards[-1]['captionCues']=data['outroCaptionCues'][lang]
         manifest=dict(slug=f"radar-{data['publicationDate']}-ep{data['episode']}-{lang}",title=data['titles'][lang],locale='zh-CN' if lang=='zh' else 'en-US',voice=voice,tts_rate='+4%',fps=30,canvas={'width':1080,'height':1920},tail_hold_sec=.8,min_duration_sec=20,max_duration_sec=180,project_count=len(data['projects']),cards=cards,visualVersion='native-editorial-large-pixel-subtitles-v1',motion='none',sourceDate=data['sourceDate'],publicationDate=data['publicationDate'],inputSha256=source_hash,subtitleStyle={'fontPixels':70 if lang=='zh' else 64,'centerY':1580,'maxLines':2})
+        if data.get('ttsRate') is not None:
+            if data['ttsRate']!='+0%':raise ValueError('Explicit narration rate must be normal speed')
+            manifest['tts_rate']=data['ttsRate']
+        if any(p[lang].get('readingLayer') for p in data['projects']):manifest['visualVersion']='native-task-first-explicit-captions-v2'
         covers(data,lang,out)
         path=out/'content_manifest.json';path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n');manifests.append(path)
     return manifests

@@ -18,6 +18,9 @@ def base(day,lang):
     text(d,day[5:].replace('-','.'),(899,78),28,'en',width=120)
     return im,d
 def frame(card,day,lang,target):
+    if card.get('readingLayer'):
+        from .editorial_layout import editorial_frame
+        return editorial_frame(card,day,lang,target)
     im,d=base(day,lang);value=card['headline'];tokens=list(value) if lang=='zh' else value.split();rows=[];line=''
     for token in tokens:
         candidate=line+(' ' if lang=='en' and line else '')+token

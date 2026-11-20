@@ -1,13 +1,114 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
-const {dailyRun}=require('../lib/daily-runner');const {DEFAULT_CONTRACT}=require('../lib/operating-contract');
-async function fixture(fn){const r=await fs.mkdtemp(path.join(os.tmpdir(),'daily-run-'));process.env.PROMO_STATE_DIR=r+'/locks';try{await fs.writeFile(r+'/queue.json',JSON.stringify({items:[],currentCounts:{}}));await fs.writeFile(r+'/receipt.json',JSON.stringify({date:'2026-11-13',publiclyPublished:[]}));await fs.writeFile(r+'/metrics.json',JSON.stringify({date:'2026-11-13',rows:[]}));await fs.writeFile(r+'/registry.json',JSON.stringify({channels:[]}));await fs.writeFile(r+'/handoff.md','Current');await fs.writeFile(r+'/policy.json',JSON.stringify({activeContract:DEFAULT_CONTRACT,videoReleaseQueue:r+'/queue.json',currentRun:r+'/receipt.json',latestDailyMetrics:r+'/metrics.json',latestDailyHandoff:r+'/handoff.md',channelRegistry:r+'/registry.json'}));const config={stateRoot:r+'/state',outputRoot:r+'/output',policyFile:r+'/policy.json',activation:{publishEnabled:false}};await fn({r,config});}finally{await fs.rm(r,{recursive:true,force:true});}}
-test('plan mode persists a report without invoking generator or any browser/publisher',()=>fixture(async({r,config})=>{let calls=0;const result=await dailyRun({config,asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>{calls++;},publish:async()=>{calls++;}}});assert.equal(result.status,'planned_no_browser_or_publication');assert.equal(calls,0);assert.equal(JSON.parse(await fs.readFile(r+'/state/latest-run.json')).date,'2026-11-13');}));
-test('disabled publish gate blocks before generation or account access',()=>fixture(async({config})=>{let called=false;const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>{called=true;}}});assert.equal(r.status,'blocked');assert.equal(called,false);}));
-test('a failing platform stops only its own operation; remaining validated platforms continue once',()=>fixture(async({config})=>{config.activation={publishEnabled:true,liveValidatedAdapters:{douyin:true,bilibili:true}};const calls=[];const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>({jobs:[{channel:'douyin'},{channel:'bilibili'}]}),registerJobs:async()=>{},validateAdapter:async()=>({valid:true}),publish:async j=>{calls.push(j.channel);if(j.channel==='douyin')throw Object.assign(Error('login required'),{exitCode:3});return {channel:j.channel,status:'pending_review'};}}});assert.deepEqual(calls,['douyin','bilibili']);assert.equal(r.needsHuman.length,1);assert.equal(r.results.length,1);assert.equal(r.status,'partial_no_automatic_retry');}));
-test('a registered daily package with missing assets stops instead of silently creating a second episode',()=>fixture(async({r,config})=>{await fs.mkdir(config.stateRoot+'/daily-packages',{recursive:true});await fs.writeFile(config.stateRoot+'/daily-packages/2026-11-13.json',JSON.stringify({packageRoot:r+'/missing'}));const result=await dailyRun({config,mode:'build',asOf:'2026-11-13T12:00:00+08:00'});assert.equal(result.status,'blocked');assert.ok(result.failures[0].reason.includes('ENOENT'));}));
-test('authoritative queue registration must succeed before any native operation',()=>fixture(async({config})=>{config.activation={publishEnabled:true,liveValidatedAdapters:{douyin:true}};let clicks=0;const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>({jobs:[{channel:'douyin'}]}),registerJobs:async()=>{throw Error('queue identity conflict');},publish:async()=>{clicks++;}}});assert.equal(clicks,0);assert.equal(r.status,'blocked');assert.match(r.failures[0].reason,/queue identity conflict/);}));
-test('same-day later planning preserves the prior run in immutable history',()=>fixture(async({r,config})=>{await dailyRun({config,asOf:'2026-11-13T12:00:00+08:00'});await dailyRun({config,asOf:'2026-11-13T13:00:00+08:00'});const dir=r+'/output/2026-11-13/runs';assert.equal((await fs.readdir(dir)).length,2);const pointer=JSON.parse(await fs.readFile(r+'/state/latest-run.json'));assert.ok(pointer.report.includes('/runs/'));}));
-test('no exception does not turn review or an unknown public result into completed publication',()=>fixture(async({config})=>{config.activation={publishEnabled:true,liveValidatedAdapters:{youtube:true}};const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>({jobs:[{channel:'youtube'}]}),registerJobs:async()=>{},validateAdapter:async()=>({valid:true}),recordProjects:async()=>{},publish:async()=>({channel:'youtube',status:'published_native_verified_external_unknown'})}});assert.equal(r.status,'awaiting_native_or_public_verification');}));
-test('disabled channels are explicit gaps, not a failed enabled publication service',()=>fixture(async({config})=>{config.activation={publishEnabled:true,liveValidatedAdapters:{youtube:true}};let writes=0;const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>({jobs:[{channel:'youtube'},{channel:'x'}]}),registerJobs:async()=>{},validateAdapter:async ch=>({valid:ch==='youtube',reason:'native_validation_missing'}),recordProjects:async()=>{},publish:async()=>{writes++;return {channel:'youtube',status:'published_native_verified'};}}});assert.equal(writes,1);assert.equal(r.failures.length,0);assert.equal(r.skipped[0].channel,'x');assert.equal(r.status,'completed_enabled_channels_with_gaps');}));
-test('lost validation for an enabled channel remains a real failure and never publishes',()=>fixture(async({config})=>{config.activation={publishEnabled:true,liveValidatedAdapters:{youtube:true}};let writes=0;const r=await dailyRun({config,mode:'publish',asOf:'2026-11-13T12:00:00+08:00',dependencies:{build:async()=>({jobs:[{channel:'youtube'}]}),registerJobs:async()=>{},validateAdapter:async()=>({valid:false,reason:'account changed'}),publish:async()=>{writes++;}}});assert.equal(writes,0);assert.equal(r.failures.length,1);assert.equal(r.skipped.length,0);assert.equal(r.status,'partial_no_automatic_retry');}));
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { dailyRun } = require('../lib/daily-runner');
+const { main: dailyCLI } = require('../scripts/ops/daily-run');
+const { DEFAULT_CONTRACT } = require('../lib/operating-contract');
+
+const asOf = '2026-11-13T12:00:00+08:00';
+const day = '2026-11-13';
+
+async function fixture(t) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'promotion-manual-daily-'));
+  const oldState = process.env.PROMO_STATE_DIR;
+  process.env.PROMO_STATE_DIR = path.join(root, 'locks');
+  t.after(async () => {
+    if (oldState === undefined) delete process.env.PROMO_STATE_DIR;
+    else process.env.PROMO_STATE_DIR = oldState;
+    await fs.rm(root, { recursive: true, force: true });
+  });
+  const policy = {
+    activeContract: DEFAULT_CONTRACT,
+    videoReleaseQueue: path.join(root, 'queue.json'),
+    currentRun: path.join(root, 'receipt.json'),
+    latestDailyMetrics: path.join(root, 'metrics.json'),
+    latestDailyHandoff: path.join(root, 'handoff.md'),
+    channelRegistry: path.join(root, 'registry.json'),
+  };
+  const config = {
+    stateRoot: path.join(root, 'state'),
+    outputRoot: path.join(root, 'output'),
+    policyFile: path.join(root, 'policy.json'),
+  };
+  await Promise.all([
+    fs.writeFile(policy.videoReleaseQueue, JSON.stringify({ items: [], currentCounts: {} })),
+    fs.writeFile(policy.currentRun, JSON.stringify({ date: day, publiclyPublished: [] })),
+    fs.writeFile(policy.latestDailyMetrics, JSON.stringify({ date: day, rows: [] })),
+    fs.writeFile(policy.latestDailyHandoff, '# 2026-11-13'),
+    fs.writeFile(policy.channelRegistry, JSON.stringify({ channels: [] })),
+    fs.writeFile(config.policyFile, JSON.stringify(policy)),
+  ]);
+  return { config, policy };
+}
+
+test('manual plan persists a report without invoking the generator', async t => {
+  const { config } = await fixture(t);
+  const result = await dailyRun({
+    config, asOf, dependencies: { build: async () => assert.fail('plan called build') },
+  });
+  assert.equal(result.status, 'planned_no_browser_or_publication');
+  assert.equal(result.platformOperations, false);
+  const index = JSON.parse(await fs.readFile(path.join(config.stateRoot, 'latest-run.json')));
+  assert.equal(index.date, day);
+});
+
+test('retired batch publish is rejected even with the former activation flags', async () => {
+  const config = { activation: { publishEnabled: true, liveValidatedAdapters: { douyin: true } } };
+  await assert.rejects(dailyRun({ config, mode: 'publish', asOf }), /manual plan\/build/);
+  await assert.rejects(
+    dailyCLI(['--config', '/unused-former-timer-config.json', '--as-of', asOf, '--mode', 'publish']),
+    /Choose plan or build/,
+  );
+});
+
+test('manual build queues the generated jobs without calling a publisher', async t => {
+  const { config, policy } = await fixture(t);
+  const jobs = [{ channel: 'douyin' }, { channel: 'youtube' }];
+  const registerJobs = t.mock.fn(async () => {});
+  const publish = t.mock.fn(async () => assert.fail('manual build called publish'));
+  const result = await dailyRun({
+    config, mode: 'build', asOf, dependencies: { build: async () => ({ jobs }), registerJobs, publish },
+  });
+  assert.equal(result.status, 'built_only_no_publication');
+  assert.equal(result.platformOperations, false);
+  assert.deepEqual(registerJobs.mock.calls.map(call => call.arguments), [[policy.videoReleaseQueue, jobs, asOf]]);
+  assert.equal(publish.mock.callCount(), 0);
+});
+
+test('registered daily package with missing assets blocks duplicate generation', async t => {
+  const { config } = await fixture(t);
+  const adopted = path.join(config.stateRoot, 'daily-packages');
+  await fs.mkdir(adopted, { recursive: true });
+  await fs.writeFile(path.join(adopted, day + '.json'), JSON.stringify({ packageRoot: path.join(adopted, 'missing') }));
+  const result = await dailyRun({ config, mode: 'build', asOf });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.failures[0].reason, /ENOENT/);
+});
+
+test('queue identity conflict blocks acceptance of a manual build', async t => {
+  const { config } = await fixture(t);
+  const result = await dailyRun({
+    config, mode: 'build', asOf,
+    dependencies: {
+      build: async () => ({ jobs: [{ channel: 'douyin' }] }),
+      registerJobs: async () => { throw Error('queue identity conflict'); },
+    },
+  });
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.platformOperations, false);
+  assert.match(result.failures[0].reason, /queue identity conflict/);
+});
+
+test('same-day planning preserves the first run in history', async t => {
+  const { config } = await fixture(t);
+  await dailyRun({ config, asOf });
+  await dailyRun({ config, asOf: '2026-11-13T13:00:00+08:00' });
+  const runs = path.join(config.outputRoot, day, 'runs');
+  assert.equal((await fs.readdir(runs)).length, 2);
+  const index = JSON.parse(await fs.readFile(path.join(config.stateRoot, 'latest-run.json')));
+  assert.equal(path.dirname(index.report), runs);
+});

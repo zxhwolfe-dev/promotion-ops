@@ -3,7 +3,8 @@ import numpy as np
 from pathlib import Path
 # edge_tts is imported only when explicitly synthesizing; render-only stays offline.
 from .caption_strip import caption_chunks, caption_lines, subtitle_track, STRIP_TOP
-RENDERER_DIGEST=hashlib.sha256(Path(__file__).read_bytes()+Path(__file__).with_name("caption_strip.py").read_bytes()).hexdigest()
+from .caption_contract import explicit_cues
+RENDERER_DIGEST=hashlib.sha256(Path(__file__).read_bytes()+Path(__file__).with_name("caption_strip.py").read_bytes()+Path(__file__).with_name("caption_contract.py").read_bytes()).hexdigest()
 def norm(x):return re.sub(r'[\W_]+','',x.casefold())
 def probe(p):return json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
 def dur(p):return float(probe(p)['format']['duration'])
@@ -64,11 +65,12 @@ def render(manifest):
   for w in words:
    n=len(norm(w['text']));spans.append((cursor,cursor+n,w));cursor+=n
   cursor=0
-  for text in phrases(c['narration'],zh):
+  cues=explicit_cues(c['narration'],c['captionCues'],zh) if c.get('captionCues') else [(text,wrap(text,zh)) for text in phrases(c['narration'],zh)]
+  for text,lines in cues:
    length=len(norm(text));active=[w for a,b,w in spans if b>cursor and a<cursor+length];assert active
    start=offset+active[0]['offset']/1e7;end=offset+(active[-1]['offset']+active[-1]['duration'])/1e7
    assert start>=offset-.01 and end<=offset+ad+.04
-   lines=wrap(text,zh);assert len(lines)<=2
+   assert len(lines)<=2
    events.append({'start':start,'end':end,'lines':lines,'segment':i,'semanticText':text});cursor+=length
   assert cursor==len(expected)
   target=tmp/f'aligned-{i}.wav';ff(['-i',wav,'-af',f'apad=whole_dur={aligned}','-t',f'{aligned:.9f}','-ar',24000,'-ac',1,target]);parts.append(target)

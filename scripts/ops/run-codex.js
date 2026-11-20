@@ -1,4 +1,0 @@
-'use strict';
-async function main(args=process.argv.slice(2)){const o={};for(let i=0;i<args.length;i++){if(args[i]==='--config')o.configFile=args[++i];else if(args[i]==='--slot')o.slot=args[++i];else if(args[i]==='--continue-run')o.continuationOf=args[++i];else if(args[i]==='--probe')o.probe=true;else if(args[i]==='--dry-run')o.dryRun=true;else throw Error('Usage: --config file --slot day|evening [--probe|--dry-run]');}if(!o.configFile)throw Error('Local config required');return require('../../lib/codex-ops-runner').runCodexOps(o);}
-function exitCodeFor(r){return r.status==='needs_human'?3:r.status==='partial'?2:0;}
-if(require.main===module)main().then(r=>{console.log(JSON.stringify(r,null,2));process.exitCode=exitCodeFor(r);}).catch(e=>{console.error(JSON.stringify({status:'failed_requires_reconciliation',reason:e.message,automaticRetry:false}));process.exitCode=1;});module.exports={main,exitCodeFor};

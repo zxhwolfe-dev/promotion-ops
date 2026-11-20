@@ -38,16 +38,26 @@ def render_covers(data,lang,out):
         for i,project in enumerate(projects):
             c=project[lang];x=margin+(i%cols)*(cellw+gap);y=top+(i//cols)*(cellh+gap)
             d.rounded_rectangle((x,y,x+cellw,y+cellh),radius=16,fill='white',outline='#D7E2F2',width=2)
-            native=Image.open(c['source']['file']).convert('RGB');native.thumbnail((100,cellh-32),Image.Resampling.LANCZOS)
-            im.paste(native,(x+15,y+(cellh-native.height)//2))
-            tx=x+132;available=cellw-150
+            layer=c.get('readingLayer')
+            if layer:
+                tx=x+24;available=cellw-48
+            else:
+                native=Image.open(c['source']['file']).convert('RGB');native.thumbnail((100,cellh-32),Image.Resampling.LANCZOS)
+                im.paste(native,(x+15,y+(cellh-native.height)//2))
+                tx=x+132;available=cellw-150
             rank=('原榜 #' if lang=='zh' else 'Rank #')+str(c['source']['rank'])
             text(d,rank,(tx,y+19),23,'zh' if lang=='zh' else 'en',BLUE,available)
+            task_height=cellh-(120 if layer else 74)
             for points in [32,28,24]:
                 task=lines(d,c['headline'],font(points,lang),available,lang)
-                if len(task)<=3 and len(task)*(points+8)<=cellh-74:break
-            if len(task)>3 or len(task)*(points+8)>cellh-74:raise ValueError('Cover task headline overflow')
+                if len(task)<=3 and len(task)*(points+8)<=task_height:break
+            if len(task)>3 or len(task)*(points+8)>task_height:raise ValueError('Cover task headline overflow')
             for j,row in enumerate(task):text(d,row,(tx,y+60+j*(points+8)),points,lang,INK,available)
+            if layer:
+                project_name=layer['projectName']
+                for label_size in [23,21,19]:
+                    if d.textlength(project_name,font=font(label_size,'en'))<=available:break
+                text(d,project_name,(tx,y+cellh-42),label_size,'en','#52627A',available)
         footer=data['sourceDate']+'  ·  '+str(len(projects))+('个项目精选' if lang=='zh' else ' project picks')
         text(d,footer,(margin,height-65),28,lang,BLUE,width-margin*2)
         im.save(out/name)

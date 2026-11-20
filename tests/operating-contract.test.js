@@ -4,7 +4,12 @@ const {executionPlan}=require('../lib/daily-execution');
 const {videoReleasePlan}=require('../lib/video-release-queue');
 const {maintenanceAudit}=require('../lib/channel-maintenance');
 const now='2026-11-13T22:00:00+08:00';
-test('an installed creation timer is reported without claiming automatic publishing',()=>{const p=executionPlan({asOf:now,receipts:[],automation:{buildTimerInstalled:true}});assert.equal(p.schedulerInstalled,true);assert.equal(p.schedulerScope,'local_creation_only');assert.equal(p.automaticPublish,false);});
+test('manual planner ignores stale scheduler flags and remains read-only',()=>{
+ const p=executionPlan({asOf:now,receipts:[],automation:{codexSchedulerInstalled:true,publisherTimerInstalled:true,unattendedPublishingEnabled:true}});
+ assert.equal(p.schedulerInstalled,false);
+ assert.equal(p.automaticPublish,false);
+ assert.equal(p.planPerformsPublication,false);
+});
 test('project-count contract requires explicit bounded integers',()=>{const {DEFAULT_CONTRACT,validateContract}=require('../lib/operating-contract');for(const projects of [undefined,{min:8,max:6},{min:6.5,max:8}])assert.throws(()=>validateContract({...DEFAULT_CONTRACT,projects}),/project contract/);});
 const item=(extra={})=>({id:'ep16:youtube',episode:16,channel:'youtube',publicationDate:'2026-11-13',publishAt:null,sha256:'a'.repeat(64),qualityGate:'passed',status:'ready_for_authorized_session',...extra});
 test('active eight tasks include four video platforms, X alternative and three AK; suspended Snowball is not missing',()=>{
@@ -35,6 +40,3 @@ test('Douyin inclusion is scoped to explicitly enabled Radar; WeChat remains man
  const ch={id:'douyin',platform:'douyin',mode:'active',operationalRole:'daily_native_video',enabledProgrammes:['radar_daily']};
  const a=maintenanceAudit({channels:[ch,{...ch,id:'wechat-channels',platform:'wechat-channels'}],asOf:now});assert.notEqual(a.rows[0].nextAction,'keep_manual_or_paused');assert.equal(a.rows[1].nextAction,'keep_manual_or_paused');
 });
-
-test('planner reports the configured three-publisher timer separately from its own read-only execution',()=>{const p=executionPlan({asOf:now,receipts:[],automation:{buildTimerInstalled:true,publisherTimerInstalled:true,unattendedPublishingEnabled:true,validatedPublishChannels:['douyin','bilibili','tiktok']}});assert.equal(p.schedulerScope,'local_radar_creation_and_validated_publishers');assert.equal(p.scheduledPublishingEnabled,true);assert.deepEqual(p.scheduledPublishChannels,['douyin','bilibili','tiktok']);assert.equal(p.automaticPublish,false);assert.equal(p.planPerformsPublication,false);const disabled=executionPlan({asOf:now,receipts:[],automation:{buildTimerInstalled:true,publisherTimerInstalled:true,unattendedPublishingEnabled:false,validatedPublishChannels:['douyin']}});assert.equal(disabled.scheduledPublishingEnabled,false);});
-test('model-led timers are distinguished from retired fixed creation/publication timers',()=>{const p=executionPlan({asOf:now,receipts:[],automation:{codexSchedulerInstalled:true,buildTimerInstalled:false,publisherTimerInstalled:false}});assert.equal(p.schedulerInstalled,true);assert.equal(p.schedulerScope,'local_model_led_operations');assert.equal(p.modelLedOperations,true);assert.equal(p.automaticPublish,false);});
