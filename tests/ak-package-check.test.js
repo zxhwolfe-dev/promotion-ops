@@ -6,7 +6,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { checkAKPackage } = require('../lib/ak-package-check');
-function fixture(fn) {
+const { runAKJob } = require('../lib/publishers/ak-job');
+async function fixture(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'promotion-ak-'));
   try {
     const reports = ['battle', 'domestic-news', 'limitup'].map((id, i) => {
@@ -17,8 +18,8 @@ function fixture(fn) {
         complete: true, visuallyVerified: true, nativeDownload: true,
         sourceUrl: `https://akaiagents.com/share-images/${id}/original.png`, sha256: createHash('sha256').update(bytes).digest('hex') };
     });
-    fn({ asOf: '2026-10-22T18:00:00+08:00', publicationDate: '2026-10-22', tradingDay: true,
-      channel: 'xueqiu', caption: '10月22日盘后复盘，新闻采用早报。', reports, previousUses: [] });
+    await fn({ asOf: '2026-10-22T18:00:00+08:00', publicationDate: '2026-10-22', tradingDay: true,
+      channel: 'xueqiu', caption: '10月22日盘后复盘，新闻采用早报。', reports, previousUses: [] }, dir);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 const codes = input => checkAKPackage(input).errors.map(item => item.code);
@@ -45,6 +46,31 @@ test('evening news needs actual evening generation and current clock after19:30'
   input.reports[1].reportAt = '2026-10-22T19:34:00+08:00';
   input.asOf = '2026-10-22T20:00:00+08:00'; input.reports[1].downloadedAt = '2026-10-22T19:40:00+08:00';
   assert.equal(checkAKPackage(input).status, 'ready_for_authorized_native_publish');
+}));
+test('the trading-day publisher preflights the evening edition before touching the browser', () => fixture(async (input, dir) => {
+  const registryFile = path.join(dir, 'media.json');
+  fs.writeFileSync(registryFile, '[]');
+  const job = {
+    ...input, channel: 'weibo', caption: '10月22日盘后复盘。',
+    account: { ownerSelector: '[data-account]', ownerText: 'owner',
+      composeURL: 'https://weibo.com/compose', listURL: 'https://weibo.com/my-posts' },
+  };
+  const night = '2026-10-22T20:00:00+08:00';
+  const run = (phase, asOf = night) => runAKJob({
+    job, phase, asOf, registryFile, stateRoot: dir,
+    browser: () => assert.fail('preflight must finish before browser use'),
+  });
+  assert.ok((await run('inspect')).errors.some(error => error.code === 'EVENING_NEWS_REQUIRED'));
+  await assert.rejects(run('prepare'), /EVENING_NEWS_REQUIRED/);
+  job.tradingDay = false;
+  assert.equal((await run('inspect')).status, 'ready_for_authorized_native_publish');
+  job.tradingDay = true;
+  Object.assign(job.reports[1], {
+    edition: 'evening', reportAt: '2026-10-22T19:34:00+08:00', downloadedAt: '2026-10-22T19:40:00+08:00',
+  });
+  assert.equal((await run('inspect', '2026-10-22T19:29:59+08:00')).status, 'blocked');
+  assert.equal((await run('inspect')).status, 'ready_for_authorized_native_publish');
+  assert.equal(fs.readFileSync(registryFile, 'utf8'), '[]');
 }));
 test('caption product links blocked while source metadata original links are preserved', () => fixture(input => {
   input.caption += ' 产品：https://akaiagents.com/?utm_source=xueqiu';

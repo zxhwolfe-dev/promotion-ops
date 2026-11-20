@@ -85,3 +85,26 @@ test('image posts retain the existing review shape', () => {
   assert.equal('performanceReview' in run([observation({ views: 5 })], undefined,
     { ...receipt, kind: 'image_prompt' }), false);
 });
+
+test('duplicate receipts prefer a known publication clock and preserve Douyin retention', () => {
+  const native = { ...receipt, channel: 'douyin', kind: 'workstation_short' };
+  const sample = observation({views:205,twoSecondExitRatePercent:54,completionRatePercent:3}, {channel:'douyin'});
+  const tasks = reviewTasks([{ ...native, publishedAt:null }, native], [sample], Date.parse('2026-11-07T20:00:00+08:00'));
+  assert.equal(tasks.length,3);
+  assert.equal(tasks[0].performanceReview.metrics.twoSecondExitRatePercent,54);
+  assert.equal(tasks[0].performanceReview.comparisonReady,true);
+});
+
+test('a later update preserves the comparison sample and its independent provenance', () => {
+  const review = run([
+    observation({ views: 240, averageWatchSeconds: 3.5, nativeRoundedCompletionPercent: 2, mainExitSecond: 2 }),
+    observation({ views: 310, averageWatchSeconds: 4.0 }, {
+      observedAt: '2026-11-08T15:00:00+08:00', evidence: '/native/late.json',
+    }),
+  ], '2026-11-08T17:00:00+08:00').performanceReview;
+  assert.equal(review.metrics.views, 310);
+  assert.equal(review.comparisonReady, true);
+  assert.equal(review.comparisonSample.metrics.views, 240);
+  assert.equal(review.comparisonSample.metrics.averageWatchSeconds, 3.5);
+  assert.equal(review.comparisonSample.evidenceByMetric.views.observedAt, '2026-11-07T19:02:00+08:00');
+});

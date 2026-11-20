@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { executionPlan, timestamp } = require('../lib/daily-execution');
-const { reviewTasks } = require('../lib/receipt-reviews');
+const { reviewTasks, reviewsDueNow } = require('../lib/receipt-reviews');
 const { main } = require('../scripts/ops/daily-execution-plan');
 const row = (channel, extra = {}) => ({ channel, status: 'published_native_permalink_verified',
   kind: channel === 'youtube' || channel === 'tiktok' ? 'short_video' : 'three_native_images',
@@ -40,6 +40,28 @@ test('17:30 gate uses Shanghai even when input clock uses UTC', () => {
   const before = plan([], { asOf: '2026-10-22T09:29:59Z' });
   assert.equal(before.current.filter(task => task.status === 'not_yet_due').length, 4);
   assert.equal(plan([], { asOf: '2026-10-22T09:30:00Z' }).current.filter(task => task.status === 'due').length, 6);
+});
+test('AK original receipt is handled once even when the exact public time is unavailable', () => {
+  const date = '2026-11-18';
+  const receipt = row('toutiao', {
+    kind: 'ak_daily_three_native_cards', publicationDate: date, publishedAt: null,
+    submittedAt: '2026-11-18T13:46:13Z', verifiedAt: '2026-11-18T13:51:57Z',
+    status: 'published_native_verified', nativeVerified: true, publicVerified: true,
+  });
+  const now = Date.parse('2026-11-18T23:00:00+08:00');
+  const task = item => executionPlan({
+    asOf: new Date(now).toISOString(), receipts: [{ date, publiclyPublished: [item] }],
+  }).current.find(item => item.channel === 'toutiao');
+  assert.equal(task(receipt).status, 'complete');
+  for (const changes of [
+    { status: 'published_native_verified_external_unknown', publicVerified: false },
+    { submittedAt: '2026-11-18T09:29:59Z' },
+    { submittedAt: '2026-11-18T13:55:00Z' },
+    { submittedAt: null },
+  ]) {
+    assert.equal(task({ ...receipt, ...changes }).nextAction, 'verify_existing_result_do_not_resubmit');
+  }
+  assert.equal(reviewTasks([receipt], [], now)[0].status, 'publication_time_missing');
 });
 test('yesterday pending is a missed day, never today or permission to backfill', () => {
   const result = plan([], { receipts: [{ date: '2026-10-21', pending: [{ kind: 'ak_daily_three_native_cards',
@@ -91,6 +113,23 @@ test('72h observations do not falsely complete 24h window; late sample is labele
   const tasks = reviewTasks([receipt], [sample], Date.parse('2026-10-22T19:00:00+08:00'));
   assert.equal(tasks[0].status, 'missed_observation_window'); assert.equal(tasks[1].status, 'reviewed_late');
   assert.equal(tasks[1].elapsedHours, 80);
+});
+test('one original yields one actionable review for its latest open window', () => {
+  const receipt = row('tiktok', { publishedAt: '2026-10-18T18:00:00+08:00' });
+  const now = Date.parse('2026-10-22T19:00:00+08:00');
+  const sample = {
+    channel: receipt.channel, url: receipt.url, scope: 'single_content', windowType: 'cumulative',
+    observedAt: '2026-10-19T19:00:00+08:00', evidenceFilePresent: true, metrics: { views: null },
+  };
+  const tasks = reviewTasks([receipt], [sample], now);
+  assert.equal(tasks[0].status, 'visibility_only_metrics_unknown');
+  const actions = reviewsDueNow(tasks, now);
+  assert.deepEqual(actions.map(({ channel, windowHours }) => [channel, windowHours]), [['tiktok', 72]]);
+  assert.ok(actions[0].missingMetrics.includes('averageWatchSeconds'));
+  const acquired = { ...sample, observedAt: '2026-10-21T19:00:00+08:00', metrics: {
+    views: 45, averageWatchSeconds: 2, nativeRoundedCompletionPercent: 0, mainExitSecond: 1,
+  } };
+  assert.deepEqual(reviewsDueNow(reviewTasks([receipt], [sample, acquired], now), now), []);
 });
 test('CLI reads evidence and leaves receipt/snapshot unchanged; strict incomplete exits 2', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'promotion-day-'));

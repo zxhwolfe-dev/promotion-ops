@@ -82,3 +82,80 @@ test('canonical single-content cumulative sample closes a due review while retai
   assert.equal(review.status,'reviewed');assert.equal(review.elapsedHours,25);
   assert.deepEqual(review.metrics,{views:0,likes:null});
 }));
+
+test('policy loads the latest readback for native originals, including those not verified public',()=>fixture(({dir,policy})=>{
+  const url='https://www.tiktok.com/@owner/video/123';
+  const akUrl='https://www.tgb.cn/a/post';
+  const publishedAt='2026-10-22T08:00:00+08:00';
+  const observedAt='2026-10-24T09:00:00+08:00';
+  const status='published_native_verified_external_unknown';
+  fs.writeFileSync(path.join(dir,'evidence.json'),'{}');
+  fs.writeFileSync(path.join(dir,'receipt.json'),JSON.stringify({
+    date:'2026-10-22',publiclyPublished:[],otherSubmissions:[
+      {channel:'tiktok',url,kind:'workstation_short',status,publishedAt,evidence:'evidence.json'},
+      {channel:'taoguba',url:akUrl,kind:'ak_daily_three_native_cards',status,publishedAt:null,evidence:'evidence.json'},
+    ],
+  }));
+  fs.writeFileSync(path.join(dir,'readback.json'),JSON.stringify({
+    scope:'readback_only_existing_posts',observations:[
+      {channel:'tiktok',url,observedAt,status,evidence:'evidence.json',
+       metrics:{views:220,averageWatchSeconds:1.99,completionRatePercent:0,peakDropOffSecond:1}},
+      {channel:'taoguba',url:akUrl,observedAt,startedAt:publishedAt,status,evidence:'evidence.json',metrics:{views:96,comments:0}},
+    ],
+  }));
+  fs.writeFileSync(policy,JSON.stringify({videoReleaseQueue:'queue.json',currentRun:'receipt.json',latestReadback:'readback.json'}));
+  const {result}=main(['--as-of',AS_OF,'--policy',policy]);
+  const tiktok=result.reviews.find(task=>task.channel==='tiktok'&&task.windowHours===24);
+  assert.equal(tiktok.status,'reviewed_late');
+  assert.equal(tiktok.elapsedHours,49);
+  assert.equal(tiktok.performanceReview.status,'required_metrics_observed');
+  assert.equal(tiktok.performanceReview.metrics.nativeRoundedCompletionPercent,0);
+  assert.equal(tiktok.performanceReview.evidenceByMetric.mainExitSecond.sourceMetric,'peakDropOffSecond');
+  assert.equal(tiktok.performanceReview.comparisonReady,false);
+  const ak=result.reviews.find(task=>task.channel==='taoguba');
+  assert.equal(ak.status,'publication_time_missing');
+  assert.equal(ak.elapsedHours,null);
+  assert.deepEqual(ak.metrics,{views:96,comments:0});
+  assert.equal(result.completedTasks,0);
+}));
+
+test('default review reads earlier receipts and dated snapshots without making old work due today', () => fixture(({ dir, policy }) => {
+  const asOf = '2026-11-20T21:00:00+08:00';
+  const currentDate = '2026-11-20', oldDate = '2026-11-13';
+  const url = 'https://www.youtube.com/shorts/old';
+  const write = (file, value) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(value));
+  };
+  const receiptFile = date => path.join(dir, date + '-promotion-followup', 'publication-results.json');
+  const snapshotFile = date => path.join(dir, 'reporting', 'daily', date + '.json');
+  const observation = (observedAt, views) => ({
+    channel: 'youtube', url, observedAt, evidence: path.join(dir, 'evidence.json'),
+    scope: 'single_content', windowType: 'cumulative', metrics: { views },
+  });
+  write(path.join(dir, 'evidence.json'), {});
+  write(receiptFile(currentDate), { date: currentDate, publiclyPublished: [] });
+  write(receiptFile(oldDate), {
+    date: oldDate, publiclyPublished: [{
+      channel: 'youtube', url, kind: 'workstation_short', status: 'published_native_verified',
+      publishedAt: oldDate + 'T19:00:00+08:00', evidence: '../evidence.json',
+    }],
+  });
+  const olderSnapshot = '2026-11-14';
+  write(snapshotFile(olderSnapshot), {
+    date: olderSnapshot, rows: [{ channel: 'youtube', observations: [observation(olderSnapshot + 'T20:00:00+08:00', 12)] }],
+  });
+  write(snapshotFile(currentDate), {
+    date: currentDate, rows: [{ channel: 'youtube', observations: [observation(currentDate + 'T20:00:00+08:00', 20)] }],
+  });
+  write(snapshotFile('2026-11-15'), { date: '2026-11-16', rows: [] });
+  write(policy, { currentRun: receiptFile(currentDate), latestDailyMetrics: snapshotFile(currentDate) });
+  const args = ['--as-of', asOf, '--policy', policy];
+  const { result } = main(args);
+  assert.equal(result.reviews.find(review => review.windowHours === 24).metrics.views, 12);
+  assert.equal(result.reviews.find(review => review.windowHours === 168).elapsedHours, 169);
+  assert.equal(result.reviews.find(review => review.windowHours === 168).metrics.views, 20);
+  assert.equal(result.reviewHistoryIssues.length, 1);
+  assert.equal(result.current.find(task => task.channel === 'youtube').status, 'due');
+  assert.equal(main([...args, '--receipt', receiptFile(currentDate)]).result.reviews.length, 0);
+}));

@@ -5,14 +5,15 @@
 - `lib/operating-contract.js`定义可验证的默认合同；本地策略`activeContract`是实际配置。每日8名额，暂停渠道不计漏做，X图文/视频择一。
 - 队列使用明确的发布日期与预约时刻，不把来源日期当发布时间；同日多期允许，重复期号槽/媒体仍阻止。缓存计数必须与逐条状态一致。
 - `scripts/ops/check-consistency.js`只读检查，失败停止执行。`daily-execution-plan.js`只派生计划，不发帖。
-- `scripts/radar/capture-daily.js`使用独立匿名浏览器读取公开雷达、原生项目卡和Release；没有服务器模型调用。排除已发布项目和金融选股类混入普通AI栏目，双语不足6项就停止；日榜不足可明确改用新项目热榜，不冒充日榜。
+- `scripts/radar/capture-daily.js`使用独立匿名浏览器读取公开雷达、原生项目卡和Release。双语草稿的第一张卡直接朗读来源中的完整用途句，榜单信息保留在原卡。按原仓库身份排除近30天出现过的项目，制作前再核一次。双语合格项目不足6项可换用新项目热榜并注明实际榜单。
 - `scripts/radar/build_episode.py`接收日期/期号/6–8原生卡/双语旁白的JSON，生成两版及新片尾；`--synthesize`才联网调用免费微软语音，`--render`自动运行实际视频QA。未通过整包验收不进入发布。
 - 固定独立运行环境：`~/.local/share/promotion-ops/video-venv`，直接及传递依赖锁在`python/radar_video/requirements.lock`。不再依赖10/22临时缓存；免费语音失败不换收费服务或旧SAPI。
 - 11/17通用制作新增：项目的`readingLayer={headlineLines,projectName,task,condition}`控制完整原卡外的任务阅读层；`captionCues=[[第一句],[第二句第一行,第二行]]`显式定义语义分句，逐字覆盖旁白并沿用微软WordBoundary计时，不改原生卡像素。可传`ttsRate:+0%`及`outroNarration/outroCaptionCues`，不再临时修改生成后的帧/字幕。参考本日`manual-repair/episode-input-ready.json`，不是复制它的项目和日期到新一期。
 - `scripts/ops/publish-video.js`提供inspect/prepare/resume-preparation/submit/verify，五个平台适配器位于`lib/publishers/`。新适配器须核实真实账号及列表选择器，通过原生预检后才允许提交。平台结果以实际回执和回查为准。
-- `scripts/ops/publish-ak.js`复用原生三图包校验和持久预留，仅微博/头条/淘股吧；保持17:30、版次、真实日期、三图完整、不带产品链接。没有合格当日包不得为了日更自动声明已验收。
+- `scripts/ops/publish-ak.js`复用原生三图包校验和持久预留，渠道为微博、头条、淘股吧。17:30后核盘后图。交易日等实际19:30后生成的财经新闻晚报，再准备当日整组三图。非交易日遵循原图日期与复用规则。正文不带产品链接。
 - prepare之前预留；上传后任何中断均需回查，禁止重复prepare。submit只对已知prepared状态单次执行。verify不发送新稿，身份/正文/媒体不齐不能标成功。
 - 核到雷达视频的原生发布后，用 `lib/radar-project-history.js` 的 `recordPublishedProjects` 更新项目历史。传入该稿的作业、原生证据和制作包。同一期的渠道合并记录，供下一期查近30天重复项目。
+- 新制作包的 `promotionLanding` 随实际选题保存。自动取材写入来源榜单。跨榜选题可填本期项目 ID，先核两站已公开详情。生成的作业有 `landingUrl` 和期号归因，同一版成稿沿用已记录的地址。YouTube Shorts 正文引导搜索，频道可点击入口可使用另备链接。
 
 ## 本地命令
 

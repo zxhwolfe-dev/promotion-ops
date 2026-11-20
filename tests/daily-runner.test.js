@@ -89,6 +89,26 @@ test('registered daily package with missing assets blocks duplicate generation',
   assert.match(result.failures[0].reason, /ENOENT/);
 });
 
+test('prepared input is checked against the configured history before synthesis', async t => {
+  const { config } = await fixture(t);
+  const source = path.join(config.outputRoot, day, 'source');
+  config.projectHistory = path.join(path.dirname(config.policyFile), 'project-history.json');
+  config.videoPython = '/unreachable-video-runtime';
+  await fs.mkdir(source, { recursive: true });
+  await Promise.all([
+    fs.writeFile(path.join(source, 'episode-input.json'), JSON.stringify({
+      episode: 24, publicationDate: day, sourceDate: day, projects: [{ id: 'owner-project' }],
+    })),
+    fs.writeFile(config.projectHistory, JSON.stringify([{
+      episodeId: 'ep21-radar-daily', publicationDate: '2026-11-10',
+      projectIds: ['https://github.com/Owner/Project.git'],
+    }])),
+  ]);
+  const result = await dailyRun({ config, mode: 'build', asOf });
+  assert.equal(result.status, 'blocked');
+  assert.match(result.failures[0].reason, /already featured/);
+});
+
 test('queue identity conflict blocks acceptance of a manual build', async t => {
   const { config } = await fixture(t);
   const result = await dailyRun({

@@ -31,3 +31,15 @@ test('AK public links reject missing tracking, duplicates, credentials and wrong
  assert.ok(copyIssues({product:'unknown',channel:'reddit',language:'en',text:url}).some(x=>x.code==='INVALID_PRODUCT'));
  assert.deepEqual(copyIssues({product:'ak',channel:'reddit',language:'en',text:'https://akaiagents.com.example.test/article'}),[]);
 });
+
+test('Aitu template links keep attribution and exclude private workspace navigation', () => {
+ const options = { language: 'en', channel: 'youtube', campaign: 'aitu_headers', content: 'article_header' };
+ const url = campaignURL({ ...options, path: '/aitu-studio/?template=media.article-header' });
+ assert.equal(new URL(url).searchParams.get('template'), 'media.article-header');
+ assert.deepEqual(copyIssues({ ...options, text: url }), []);
+ for (const path of ['/aitu-studio/?project=iwj_private', '/aitu-studio/#handoff=private']) {
+  assert.throws(() => campaignURL({ ...options, path }), { code: 'PRIVATE_LINK' });
+ }
+ assert.ok(copyIssues({ ...options, text: url + '&project=iwj_private' })
+  .some(issue => issue.code === 'LINK_CREDENTIALS'));
+});

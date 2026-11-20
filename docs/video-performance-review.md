@@ -2,6 +2,10 @@
 
 沿用 `daily-execution-plan.js`、当前发布回执与日数据，不建立平行排期或后台时钟。
 
+日常只传 `--as-of` 即可。采用默认台账时，也读取最近两周的已存回执和日报，用于 24h、72h、7d 效果复查。手动指定回执或日报时按所选资料回放。当前发布计划仍以当轮回执和原生队列为准。
+
+当轮优先查看 `reviewsDueNow`。同一原帖只列当前已到期窗口需要补的指标。已有计数与错过的旧窗口留在完整的 `reviews`。
+
 ```bash
 node scripts/ops/daily-execution-plan.js \
   --as-of 2026-11-07T20:10:00+08:00 \
@@ -15,7 +19,7 @@ node scripts/ops/daily-execution-plan.js \
 - TikTok需要播放、平均观看秒数、原生显示完播百分比、主要退出秒数。
 - B站需要播放和收藏；未显示的收藏记未知，不补零。
 - YouTube只强制播放，原生可取得的其他指标保留，不能强制套用TikTok字段。
-- `evidenceByMetric` 保留各指标的真实采样时间和证据，避免把早采留存与晚采播放拼成同一时点。
+- `evidenceByMetric` 保留各指标的真实采样时间和证据。`comparisonSample` 保存满足原试验条件的同龄样本，也能继续查看后续采样。
 - `not_due` 不提前结论；`metrics_incomplete` 需补原生指标或如实记录无法取得；`no_window_sample` 不从其他窗口借数。
 - `required_metrics_observed` 仅表示上述指标可取得，不代表内容有效、样本充分或已转化。
 
